@@ -2,7 +2,7 @@
 name = "ac_cursive"
 version = "0.1.0"
 edition = "2021"
-
+repository = "https://github.com/smallB007/ac_cursive.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
