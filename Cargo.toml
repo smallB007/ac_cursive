@@ -1,0 +1,10 @@
+[package]
+name = "ac_cursive"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cursive = { git = "https://github.com/smallB007/cursive.git" }
+cursive_table_view = { git = "https://github.com/smallB007/cursive_table_view.git" }
