@@ -6,8 +6,10 @@ repository = "https://github.com/smallB007/ac_cursive.git"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cursive = "*"
+#cursive = "*"
 #cursive_table_view = "*"
-#cursive = { git = "https://github.com/smallB007/cursive.git" }
+cursive = { git = "https://github.com/smallB007/cursive.git" }
 cursive_table_view = { git = "https://github.com/smallB007/cursive_table_view.git" }
 rand = "*"
+[patch.crates-io]
+cursive_core = { git = "https://github.com/smallB007/cursive.git" }
