@@ -6,13 +6,15 @@ extern crate rand;
 
 // STD Dependencies -----------------------------------------------------------
 // ----------------------------------------------------------------------------
-use std::cmp::Ordering;
+use std::{cmp::Ordering, rc::Rc};
 
 // External Dependencies ------------------------------------------------------
 // ----------------------------------------------------------------------------
 use cursive::theme::ColorStyle;
 use cursive::traits::*;
-use cursive::views::{Dialog, DummyView, LinearLayout, ResizedView, StackView, TextView};
+use cursive::views::{
+    Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView, TextView,
+};
 use cursive::{align::HAlign, views::Button};
 use cursive::{direction::Orientation, views::CircularFocus};
 use rand::Rng;
@@ -21,49 +23,16 @@ use rand::Rng;
 // ----------------------------------------------------------------------------
 use cursive_table_view::{TableView, TableViewItem};
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
-enum BasicColumn {
-    Name,
-    Count,
-    Rate,
-}
-
-#[derive(Clone, Debug)]
-struct Foo {
-    name: String,
-    count: usize,
-    rate: usize,
-}
-
-impl TableViewItem<BasicColumn> for Foo {
-    fn to_column(&self, column: BasicColumn) -> String {
-        match column {
-            BasicColumn::Name => self.name.to_string(),
-            BasicColumn::Count => format!("{}", self.count),
-            BasicColumn::Rate => format!("{}", self.rate),
-        }
-    }
-
-    fn cmp(&self, other: &Self, column: BasicColumn) -> Ordering
-    where
-        Self: Sized,
-    {
-        match column {
-            BasicColumn::Name => self.name.cmp(&other.name),
-            BasicColumn::Count => self.count.cmp(&other.count),
-            BasicColumn::Rate => self.rate.cmp(&other.rate),
-        }
-    }
-}
 mod tui_fn;
-use tui_fn::create_menu;
+use tui_fn::{create_menu, create_panel::create_panel};
 fn main() {
     let mut siv = cursive::default();
     create_menu::create_menubar(&mut siv);
     let mut layout_panes = LinearLayout::new(Orientation::Horizontal);
-    layout_panes.add_child(Dialog::around(create_table()).title("Left").full_screen());
-    layout_panes.add_child(ResizedView::with_fixed_size((4, 0), DummyView));
-    layout_panes.add_child(Dialog::around(create_table()).title("Right").full_screen());
+
+    layout_panes.add_child(create_panel("Left", "LeftDialog"));
+    layout_panes.add_child(create_panel("Right", "RightDialog"));
+
     let layout_circular_panes = CircularFocus::new(layout_panes);
     let layout_circular_panes = layout_circular_panes.wrap_tab();
 
@@ -90,7 +59,24 @@ fn main() {
         .child(Button::new_raw("[ MkDir ]", |s| {}));
     let pulldown_layout = LinearLayout::horizontal()
         .child(TextView::new("F9").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Menu ]", |s| {}));
+        .child(Button::new_raw("[ Menu ]", move |s| {
+            //s.call_on_name(
+            //    "left_panel_hideable",
+            //    |ob: &mut NamedView<ResizedView<HideableView<NamedView<Dialog>>>>| {
+            //        ob.get_mut().get_inner_mut().hide();
+            //    },
+            //);
+            //let mut layout_panes = LinearLayout::new(Orientation::Horizontal);
+            //let named_v_right: NamedView<Dialog> = Dialog::around(create_table())
+            //    .title("Left")
+            //    .with_name("left_dialog");
+            //let hide_v_right: HideableView<NamedView<Dialog>> = HideableView::new(named_v_right);
+            //let hide_v_right_full_screed: NamedView<ResizedView<HideableView<NamedView<Dialog>>>> =
+            //    hide_v_right.full_screen().with_name("right_panel_hideable");
+            //layout_panes.add_child(hide_v_right_full_screed);
+            //s.add_fullscreen_layer(layout_panes);
+        }));
+
     let quit_layout = LinearLayout::horizontal()
         .child(TextView::new("F10").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Quit ]", |s| s.quit()));
@@ -126,27 +112,4 @@ fn main() {
     siv.add_fullscreen_layer(main_view);
 
     siv.run();
-}
-
-fn create_table() -> TableView<Foo, BasicColumn> {
-    let mut items = Vec::new();
-    let mut rng = rand::thread_rng();
-
-    for i in 0..50 {
-        items.push(Foo {
-            name: format!("Name {}", i),
-            count: rng.gen_range(0..=255),
-            rate: rng.gen_range(0..=255),
-        });
-    }
-
-    TableView::<Foo, BasicColumn>::new()
-        .column(BasicColumn::Name, "Name", |c| c.width_percent(20))
-        .column(BasicColumn::Count, "Count", |c| c.align(HAlign::Center))
-        .column(BasicColumn::Rate, "Rate", |c| {
-            c.ordering(Ordering::Greater)
-                .align(HAlign::Right)
-                .width_percent(20)
-        })
-        .items(items)
 }
