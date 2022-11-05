@@ -101,7 +101,6 @@ dependencies = [
 [[package]]
 name = "cursive_table_view"
 version = "0.14.0"
-source = "git+https://github.com/smallB007/cursive_table_view.git#c151fc1349354cae0fa741c8e791ef9eab921742"
 dependencies = [
  "cursive_core",
 ]
