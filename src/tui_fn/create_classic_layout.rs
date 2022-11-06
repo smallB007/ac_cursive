@@ -13,11 +13,10 @@ pub fn create_classic_layout() -> LinearLayout {
     let layout_circular_panes = CircularFocus::new(layout_panes);
     let layout_circular_panes = layout_circular_panes.wrap_tab();
 
-    //  let aligned_center = AlignedView::with_center(stack_buttons);
-    let classic_buttons = create_classic_buttons();
-    let classic_layout = LinearLayout::vertical()
+    let buttons = create_classic_buttons();
+    let layout = LinearLayout::vertical()
         .child(layout_circular_panes)
-        .child(classic_buttons);
+        .child(buttons);
 
-    classic_layout
+    layout
 }

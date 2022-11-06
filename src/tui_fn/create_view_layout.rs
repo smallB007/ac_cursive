@@ -11,16 +11,9 @@ pub fn create_view_layout() -> LinearLayout {
     let mut layout_panes = LinearLayout::new(Orientation::Horizontal);
 
     layout_panes.add_child(create_panel("Left", "LeftDialog"));
-    //layout_panes.add_child(create_panel("Right", "RightDialog"));
 
-    //let layout_circular_panes = CircularFocus::new(layout_panes);
-    //let layout_circular_panes = layout_circular_panes.wrap_tab();
+    let buttons = create_view_buttons();
+    let layout = LinearLayout::vertical().child(layout_panes).child(buttons);
 
-    //  let aligned_center = AlignedView::with_center(stack_buttons);
-    let classic_buttons = create_view_buttons();
-    let classic_layout = LinearLayout::vertical()
-        .child(layout_panes)
-        .child(classic_buttons);
-
-    classic_layout
+    layout
 }
