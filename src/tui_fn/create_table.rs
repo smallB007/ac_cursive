@@ -11,7 +11,7 @@ pub enum BasicColumn {
 
 #[derive(Clone, Debug)]
 pub struct Foo {
-    name: String,
+    pub name: String,
     count: usize,
     rate: usize,
 }

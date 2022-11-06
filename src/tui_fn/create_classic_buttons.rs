@@ -1,13 +1,20 @@
-use crate::cursive::view::Nameable;
 use crate::cursive::view::Resizable;
+use crate::{
+    cursive::view::Nameable,
+    utils::common_utils::{get_active_table_first_selected_item, get_active_table_name},
+};
 use cursive::theme::ColorStyle;
 use cursive::views::{
     Button, Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView,
     TextView,
 };
 use cursive::{direction::Orientation, views::CircularFocus};
+use cursive_table_view::TableView;
 
-use crate::tui_fn::{create_table::create_table, create_view_layout::create_view_layout};
+use crate::tui_fn::{
+    create_table::{create_table, BasicColumn, Foo},
+    create_view_layout::create_view_layout,
+};
 
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
@@ -23,6 +30,8 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
     let view_layout = LinearLayout::horizontal()
         .child(TextView::new("F3").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ View ]", |s| {
+            let active_table_name = get_active_table_name(s);
+            let selected_item = get_active_table_first_selected_item(s, &active_table_name);
             let view_layout = create_view_layout();
             s.add_fullscreen_layer(view_layout);
         }));

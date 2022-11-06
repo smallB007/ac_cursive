@@ -24,6 +24,7 @@ use rand::Rng;
 use cursive_table_view::{TableView, TableViewItem};
 
 mod tui_fn;
+mod utils;
 use tui_fn::{
     create_classic_buttons::create_classic_buttons, create_classic_layout::create_classic_layout,
     create_menu::create_menubar, create_panel::create_panel,
