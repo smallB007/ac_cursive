@@ -5,3 +5,5 @@ pub mod create_panel;
 pub mod create_table;
 pub mod create_view_buttons;
 pub mod create_view_layout;
+pub mod create_view_panel;
+pub mod create_view_table;
