@@ -11,7 +11,8 @@ pub fn create_classic_layout() -> LinearLayout {
     layout_panes.add_child(create_panel("Right", "RightDialog"));
 
     let layout_circular_panes = CircularFocus::new(layout_panes);
-    let layout_circular_panes = layout_circular_panes.wrap_tab();
+    let layout_circular_panes =
+        layout_circular_panes.wrap_tab().wrap_up_down(/*won't go to the function keys */);
 
     let buttons = create_classic_buttons();
     let layout = LinearLayout::vertical()
