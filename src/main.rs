@@ -33,8 +33,7 @@ fn main() {
     let mut siv = cursive::default();
     create_menubar(&mut siv);
     let classic_layout = create_classic_layout();
-    let view_layout = create_view_layout();
     siv.add_fullscreen_layer(classic_layout);
-    siv.add_fullscreen_layer(view_layout);
+
     siv.run();
 }

@@ -7,7 +7,7 @@ use cursive::views::{
 };
 use cursive::{direction::Orientation, views::CircularFocus};
 
-use crate::tui_fn::create_table::create_table;
+use crate::tui_fn::{create_table::create_table, create_view_layout::create_view_layout};
 
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
@@ -22,7 +22,10 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         .child(Button::new_raw("[ Popup ]", |s| {}));
     let view_layout = LinearLayout::horizontal()
         .child(TextView::new("F3").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ View ]", |s| {}));
+        .child(Button::new_raw("[ View ]", |s| {
+            let view_layout = create_view_layout();
+            s.add_fullscreen_layer(view_layout);
+        }));
     let edit_layout = LinearLayout::horizontal()
         .child(TextView::new("F4").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Edit ]", |s| {}));

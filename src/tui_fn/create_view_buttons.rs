@@ -57,7 +57,9 @@ pub fn create_view_buttons() -> ResizedView<StackView> {
 
     let quit_layout = LinearLayout::horizontal()
         .child(TextView::new("F10").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Quit ]", |s| s.quit()));
+        .child(Button::new_raw("[ Quit ]", |s| {
+            s.pop_layer();
+        }));
 
     let classic_buttons = LinearLayout::horizontal()
         .child(help_layout)
