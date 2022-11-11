@@ -19,17 +19,17 @@ use crate::tui_fn::{
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
         TextView::new("F1").style(ColorStyle::title_primary()),
-        Button::new_raw("[ Help ]", |s| {}),
+        Button::new_raw("[ Info ]", |s| {}),
     );
     let help_layout = LinearLayout::horizontal()
         .child(TextView::new("F1").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Help ]", |s| {}));
+        .child(Button::new_raw("[ Info ]", |s| {}));
     let menu_layout = LinearLayout::horizontal()
         .child(TextView::new("F2").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Popup ]", |s| {}));
     let view_layout = LinearLayout::horizontal()
         .child(TextView::new("F3").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ View ]", |s| {
+        .child(Button::new_raw("[ View/Edit ]", |s| {
             let active_table_name = get_active_table_name(s);
             let selected_item = get_active_table_first_selected_item(s, &active_table_name);
             let view_layout = create_view_layout();
@@ -37,7 +37,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         }));
     let edit_layout = LinearLayout::horizontal()
         .child(TextView::new("F4").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Edit ]", |s| {}));
+        .child(Button::new_raw("[ Peek ]", |s| {}));
     let copy_layout = LinearLayout::horizontal()
         .child(TextView::new("F5").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Copy ]", |s| {}));
@@ -49,7 +49,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         .child(Button::new_raw("[ MkDir ]", |s| {}));
     let pulldown_layout = LinearLayout::horizontal()
         .child(TextView::new("F9").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Menu ]", move |s| {
+        .child(Button::new_raw("[ Find ]", move |s| {
             //s.call_on_name(
             //    "left_panel_hideable",
             //    |ob: &mut NamedView<ResizedView<HideableView<NamedView<Dialog>>>>| {
