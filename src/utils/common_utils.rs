@@ -1,6 +1,6 @@
 use cursive::Cursive;
 
-use crate::tui_fn::create_table::{create_table, BasicColumn, Foo};
+use crate::tui_fn::create_table::{create_table, BasicColumn, DirView};
 use cursive::views::{
     Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView, TextView,
 };
@@ -9,7 +9,7 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
     let left_focus_time = s
         .call_on_name(
             "Left_tableview",
-            |table: &mut NamedView<TableView<Foo, BasicColumn>>| {
+            |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
                 table.get_mut().get_last_focus_time()
             },
         )
@@ -18,7 +18,7 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
     let right_focus_time = s
         .call_on_name(
             "Right_tableview",
-            |table: &mut NamedView<TableView<Foo, BasicColumn>>| {
+            |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
                 table.get_mut().get_last_focus_time()
             },
         )
@@ -35,7 +35,7 @@ pub fn get_active_table_first_selected_item(s: &mut Cursive, active_table_name: 
     let selected_item = s
         .call_on_name(
             active_table_name,
-            |table: &mut NamedView<TableView<Foo, BasicColumn>>| {
+            |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
                 table.get_mut().get_selected_item().name.clone()
             },
         )

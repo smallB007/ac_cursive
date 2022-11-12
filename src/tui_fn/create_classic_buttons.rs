@@ -12,7 +12,7 @@ use cursive::{direction::Orientation, views::CircularFocus};
 use cursive_table_view::TableView;
 
 use crate::tui_fn::{
-    create_table::{create_table, BasicColumn, Foo},
+    create_table::{create_table, BasicColumn, DirView},
     create_view_layout::create_view_layout,
 };
 
@@ -56,15 +56,15 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             //        ob.get_mut().get_inner_mut().hide();
             //    },
             //);
-            let mut layout_panes = LinearLayout::new(Orientation::Horizontal);
-            let named_v_right: NamedView<Dialog> = Dialog::around(create_table())
-                .title("Left")
-                .with_name("left_dialog");
-            let hide_v_right: HideableView<NamedView<Dialog>> = HideableView::new(named_v_right);
-            let hide_v_right_full_screed: NamedView<ResizedView<HideableView<NamedView<Dialog>>>> =
-                hide_v_right.full_screen().with_name("right_panel_hideable");
-            layout_panes.add_child(hide_v_right_full_screed);
-            s.add_fullscreen_layer(layout_panes);
+            //let mut layout_panes = LinearLayout::new(Orientation::Horizontal);
+            //let named_v_right: NamedView<Dialog> = Dialog::around(create_table())
+            //    .title("Left")
+            //    .with_name("left_dialog");
+            //let hide_v_right: HideableView<NamedView<Dialog>> = HideableView::new(named_v_right);
+            //let hide_v_right_full_screed: NamedView<ResizedView<HideableView<NamedView<Dialog>>>> =
+            //    hide_v_right.full_screen().with_name("right_panel_hideable");
+            //layout_panes.add_child(hide_v_right_full_screed);
+            //s.add_fullscreen_layer(layout_panes);
         }));
 
     let quit_layout = LinearLayout::horizontal()
