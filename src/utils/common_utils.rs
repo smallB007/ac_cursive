@@ -1,3 +1,5 @@
+use std::{fs::DirEntry, path::PathBuf};
+
 use cursive::Cursive;
 
 use crate::tui_fn::create_table::{create_table, BasicColumn, DirView};
@@ -32,6 +34,7 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
 }
 
 pub fn get_active_table_first_selected_item(s: &mut Cursive, active_table_name: &str) -> String {
+    //++artie refactor, return ref to direntry
     let selected_item = s
         .call_on_name(
             active_table_name,

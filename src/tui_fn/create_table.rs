@@ -9,19 +9,17 @@ pub enum BasicColumn {
     Rate,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct DirView {
     pub name: String,
-    count: usize,
-    rate: usize,
 }
 
 impl TableViewItem<BasicColumn> for DirView {
     fn to_column(&self, column: BasicColumn) -> String {
         match column {
-            BasicColumn::Name => self.name.to_string(),
-            BasicColumn::Count => format!("{}", self.count),
-            BasicColumn::Rate => format!("{}", self.rate),
+            BasicColumn::Name => self.name.clone(),
+            BasicColumn::Count => format!("{}", 0),
+            BasicColumn::Rate => format!("{}", 0),
         }
     }
 
@@ -33,37 +31,34 @@ impl TableViewItem<BasicColumn> for DirView {
             BasicColumn::Name if self.name == ".." => Ordering::Greater,
             //BasicColumn::Name if self.name.starts_with("/.") => Ordering::Less,
             BasicColumn::Name => self.name.cmp(&other.name),
-            BasicColumn::Count => self.count.cmp(&other.count),
-            BasicColumn::Rate => self.rate.cmp(&other.rate),
+            BasicColumn::Count => Ordering::Equal,
+            BasicColumn::Rate => Ordering::Equal,
         }
     }
 }
-
-pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
+pub fn prepare_items_for_table_view(dir: &str) -> Vec<DirView> {
     let dir_entries = list_dir_content(dir).unwrap(); //++artie, unwrap, deal with error, disp dialog
     let mut items = Vec::new();
     let is_root = PathBuf::from(dir).parent().is_none();
     if !is_root {
+        let level_up_dir_entry = String::from("..");
         items.push(DirView {
-            name: String::from(".."),
-            count: 0,
-            rate: 0,
+            name: level_up_dir_entry,
         });
     }
     for entry in dir_entries {
-        let path = if entry.path().is_dir() {
-            format!("/{}", entry.path().file_name().unwrap().to_str().unwrap())
+        let path = if entry.is_dir() {
+            format!("/{}", entry.file_name().unwrap().to_str().unwrap())
         } else {
-            String::from(entry.path().file_name().unwrap().to_str().unwrap())
+            String::from(entry.file_name().unwrap().to_str().unwrap())
         };
 
-        items.push(DirView {
-            name: path,
-            count: 0,
-            rate: 0,
-        });
+        items.push(DirView { name: path });
     }
 
+    items
+}
+pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
     TableView::<DirView, BasicColumn>::new()
         .column(BasicColumn::Name, "Name", |c| c.width_percent(20))
         .column(BasicColumn::Count, "Count", |c| c.align(HAlign::Center))
@@ -72,16 +67,17 @@ pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
                 .align(HAlign::Right)
                 .width_percent(20)
         })
-        .items(items)
+        .items(prepare_items_for_table_view(dir))
 }
 
 use std::fs::{self, DirEntry};
 
-fn list_dir_content(dir: &str) -> Result<Vec<DirEntry>, std::io::Error> {
+fn list_dir_content(dir: &str) -> Result<Vec<PathBuf>, std::io::Error> {
     let mut entries = Vec::new();
+
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
-        entries.push(entry);
+        entries.push(entry.path());
         //println!("entry: {:?}", entry);
         //let path = entry.path();
 
