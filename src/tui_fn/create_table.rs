@@ -29,14 +29,45 @@ impl TableViewItem<BasicColumn> for DirView {
     {
         match column {
             BasicColumn::Name if self.name == ".." => Ordering::Greater,
-            BasicColumn::Name if self.name.ends_with('/') && other.name.ends_with('/') => {
-                Ordering::Equal
+            BasicColumn::Name
+                if self.name.starts_with('.')
+                    && other.name.starts_with('.')
+                    && self.name.ends_with('/')
+                    && other.name.ends_with('/') =>
+            {
+                self.name.cmp(&other.name)
             }
+            BasicColumn::Name
+                if self.name.starts_with('.')
+                    && self.name.ends_with('/')
+                    && other.name.ends_with('/') =>
+            {
+                Ordering::Greater
+            }
+            BasicColumn::Name
+                if other.name.starts_with('.')
+                    && self.name.ends_with('/')
+                    && other.name.ends_with('/') =>
+            {
+                Ordering::Less
+            }
+            BasicColumn::Name if self.name.ends_with('/') && other.name.ends_with('/') => {
+                self.name.cmp(&other.name)
+            }
+
             BasicColumn::Name if other.name.ends_with('/') => Ordering::Less,
             BasicColumn::Name if self.name.ends_with('/') => Ordering::Greater,
             BasicColumn::Name => {
-                eprintln!("other.name{}", &other.name);
-                self.name.cmp(&other.name)
+                if self.name != ".." && self.name.starts_with('.') && other.name.starts_with('.') {
+                    self.name.cmp(&other.name)
+                } else if self.name != ".."
+                    && self.name.starts_with('.')
+                    && !other.name.starts_with('.')
+                {
+                    Ordering::Less
+                } else {
+                    Ordering::Greater
+                }
             }
             BasicColumn::Count => Ordering::Equal,
             BasicColumn::Rate => Ordering::Equal,
