@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::cursive::view::{Nameable, Resizable};
 use crate::tui_fn::create_table::{create_table, prepare_items_for_table_view};
@@ -50,10 +50,12 @@ fn traverse_down(
     selected_item: String,
 ) {
     /*Third, combine them to form full path */
-    let current_path = get_current_path_from_dialog_name(s, dialog_name.clone());
-    let full_path = PathBuf::from(current_path.clone() + &selected_item);
+    let current_path = PathBuf::from(get_current_path_from_dialog_name(s, dialog_name.clone()));
+
+    let full_path = current_path.join(&selected_item);
+
     if full_path.is_dir() {
-        let new_dialog_title = String::from(current_path + &selected_item);
+        let new_dialog_title = full_path.into_os_string().into_string().unwrap();
         s.call_on_name(
             &table_view_name,
             |table: &mut TableView<DirView, BasicColumn>| {

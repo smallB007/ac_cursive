@@ -39,8 +39,8 @@ impl TableViewItem<BasicColumn> for DirView {
 pub fn prepare_items_for_table_view(dir: &str) -> Vec<DirView> {
     let dir_entries = Dir_entry_list_dir_content(dir).unwrap(); //++artie, unwrap, deal with error, disp dialog
     let mut items = Vec::new();
-    let is_root = PathBuf::from(dir).parent().is_none();
-    if !is_root {
+    let has_parent = PathBuf::from(dir).parent().is_some();
+    if has_parent {
         let level_up_dir_entry = String::from("..");
         items.push(DirView {
             name: level_up_dir_entry,
@@ -48,7 +48,7 @@ pub fn prepare_items_for_table_view(dir: &str) -> Vec<DirView> {
     }
     for entry in dir_entries {
         let path = if entry.is_dir() {
-            format!("/{}", entry.file_name().unwrap().to_str().unwrap())
+            format!("{}/", entry.file_name().unwrap().to_str().unwrap())
         } else {
             String::from(entry.file_name().unwrap().to_str().unwrap())
         };
@@ -78,6 +78,7 @@ fn Dir_entry_list_dir_content(dir: &str) -> Result<Vec<PathBuf>, std::io::Error>
     for entry in WalkDir::new(dir)
         .max_depth(1)
         .into_iter()
+        .skip(1) //to skip printout of the dir name we are iterating
         .filter_map(|e| e.ok())
     {
         //println!("{}", entry.path().display());
