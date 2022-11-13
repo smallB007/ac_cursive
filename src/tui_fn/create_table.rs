@@ -37,7 +37,7 @@ impl TableViewItem<BasicColumn> for DirView {
     }
 }
 pub fn prepare_items_for_table_view(dir: &str) -> Vec<DirView> {
-    let dir_entries = list_dir_content(dir).unwrap(); //++artie, unwrap, deal with error, disp dialog
+    let dir_entries = Dir_entry_list_dir_content(dir).unwrap(); //++artie, unwrap, deal with error, disp dialog
     let mut items = Vec::new();
     let is_root = PathBuf::from(dir).parent().is_none();
     if !is_root {
@@ -71,7 +71,20 @@ pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
 }
 
 use std::fs::{self, DirEntry};
+use walkdir::WalkDir;
 
+fn Dir_entry_list_dir_content(dir: &str) -> Result<Vec<PathBuf>, std::io::Error> {
+    let mut res = Vec::new();
+    for entry in WalkDir::new(dir)
+        .max_depth(1)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        //println!("{}", entry.path().display());
+        res.push(entry.path().to_owned())
+    }
+    Ok(res)
+}
 fn list_dir_content(dir: &str) -> Result<Vec<PathBuf>, std::io::Error> {
     let mut entries = Vec::new();
 
