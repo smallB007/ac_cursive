@@ -1,7 +1,7 @@
 use cursive::{align::HAlign, views::Button};
 use cursive_table_view::{TableView, TableViewItem};
 use rand::Rng;
-use std::{cmp::Ordering, path::PathBuf, rc::Rc};
+use std::{any::Any, cmp::Ordering, path::PathBuf, rc::Rc};
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum BasicColumn {
     Name,
@@ -12,13 +12,14 @@ pub enum BasicColumn {
 #[derive(Debug)]
 pub struct DirView {
     pub name: String,
+    pub size: u64,
 }
 
 impl TableViewItem<BasicColumn> for DirView {
     fn to_column(&self, column: BasicColumn) -> String {
         match column {
             BasicColumn::Name => self.name.clone(),
-            BasicColumn::Count => format!("{}", 0),
+            BasicColumn::Count => format!("{}", self.size),
             BasicColumn::Rate => format!("{}", 0),
         }
     }
@@ -74,7 +75,8 @@ impl TableViewItem<BasicColumn> for DirView {
         }
     }
 }
-pub fn prepare_items_for_table_view(dir: &str) -> Vec<DirView> {
+pub fn prepare_items_for_table_view(dir: &str) -> (usize, Vec<DirView>) {
+    let mut longest_path = 0_usize;
     let dir_entries = Dir_entry_list_dir_content(dir).unwrap(); //++artie, unwrap, deal with error, disp dialog
     let mut items = Vec::new();
     let has_parent = PathBuf::from(dir).parent().is_some();
@@ -82,6 +84,7 @@ pub fn prepare_items_for_table_view(dir: &str) -> Vec<DirView> {
         let level_up_dir_entry = String::from("..");
         items.push(DirView {
             name: level_up_dir_entry,
+            size: 0,
         });
     }
     for entry in dir_entries {
@@ -90,22 +93,56 @@ pub fn prepare_items_for_table_view(dir: &str) -> Vec<DirView> {
         } else {
             String::from(entry.file_name().unwrap().to_str().unwrap())
         };
-
-        items.push(DirView { name: path });
+        if path.len() > longest_path {
+            longest_path = path.len();
+        }
+        eprintln!(">>entries: {:?}", entry);
+        if entry.is_symlink() {
+            match fs::symlink_metadata(&entry) {
+                Ok(meta) => {
+                    items.push(DirView {
+                        name: path,
+                        size: meta.len(),
+                    });
+                }
+                Err(e) => {
+                    panic!("meta:{:?}, entry:{:?}", e, entry);
+                }
+            }
+        } else {
+            match fs::metadata(&entry) {
+                Ok(meta) => {
+                    items.push(DirView {
+                        name: path,
+                        size: meta.len(),
+                    });
+                }
+                Err(e) => {
+                    panic!("meta:{:?}, entry:{:?}", e, entry);
+                }
+            }
+        }
     }
 
-    items
+    (longest_path, items)
 }
 pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
+    let (longest_path, items) = prepare_items_for_table_view(dir);
     TableView::<DirView, BasicColumn>::new()
-        .column(BasicColumn::Name, "Name", |c| c.width_percent(20))
-        .column(BasicColumn::Count, "Count", |c| c.align(HAlign::Center))
-        .column(BasicColumn::Rate, "Rate", |c| {
-            c.ordering(Ordering::Greater)
-                .align(HAlign::Right)
-                .width_percent(20)
+        .column(BasicColumn::Name, "Name", |c| {
+            //if longest_path < 50 {
+            //    c.width(longest_path)
+            //} else {
+            //    c.width_percent(70)
+            //}
+            c
         })
-        .items(prepare_items_for_table_view(dir))
+        .column(BasicColumn::Count, "Size", |c| c.align(HAlign::Center))
+        .column(BasicColumn::Rate, "Modify Time", |c| {
+            c.ordering(Ordering::Greater).align(HAlign::Right)
+            //.width_percent(20)
+        })
+        .items(items)
 }
 
 use std::fs::{self, DirEntry};
