@@ -29,47 +29,49 @@ impl TableViewItem<BasicColumn> for DirView {
         Self: Sized,
     {
         match column {
-            BasicColumn::Name if self.name == ".." => Ordering::Greater,
-            BasicColumn::Name
-                if self.name.starts_with('.')
-                    && other.name.starts_with('.')
-                    && self.name.ends_with('/')
-                    && other.name.ends_with('/') =>
-            {
-                self.name.cmp(&other.name)
-            }
-            BasicColumn::Name
-                if self.name.starts_with('.')
-                    && self.name.ends_with('/')
-                    && other.name.ends_with('/') =>
-            {
-                Ordering::Greater
-            }
-            BasicColumn::Name
-                if other.name.starts_with('.')
-                    && self.name.ends_with('/')
-                    && other.name.ends_with('/') =>
-            {
-                Ordering::Less
-            }
+            BasicColumn::Name if self.name == ".." || other.name == ".." => Ordering::Greater,
+            //Folders
             BasicColumn::Name if self.name.ends_with('/') && other.name.ends_with('/') => {
-                self.name.cmp(&other.name)
-            }
-
-            BasicColumn::Name if other.name.ends_with('/') => Ordering::Less,
-            BasicColumn::Name if self.name.ends_with('/') => Ordering::Greater,
-            BasicColumn::Name => {
-                if self.name != ".." && self.name.starts_with('.') && other.name.starts_with('.') {
-                    self.name.cmp(&other.name)
-                } else if self.name != ".."
-                    && self.name.starts_with('.')
-                    && !other.name.starts_with('.')
-                {
+                if !self.name.starts_with(".") && other.name.starts_with(".") {
                     Ordering::Less
-                } else {
+                } else if self.name.starts_with(".") && !other.name.starts_with(".") {
                     Ordering::Greater
+                } else {
+                    self.name.cmp(&other.name) //seems OK
                 }
             }
+            //Folder file
+            BasicColumn::Name if self.name.ends_with('/') && !other.name.ends_with('/') => {
+                Ordering::Greater
+            }
+            BasicColumn::Name if !self.name.ends_with('/') && other.name.ends_with('/') => {
+                Ordering::Less
+            }
+            //Files
+            BasicColumn::Name if !self.name.ends_with('/') && !other.name.ends_with('/') => {
+                if self.name.starts_with(".") && !other.name.starts_with(".") {
+                    Ordering::Greater
+                } else if !self.name.starts_with(".") && other.name.starts_with(".") {
+                    Ordering::Less
+                } else {
+                    self.name.cmp(&other.name)
+                }
+            }
+            BasicColumn::Name => self.name.cmp(&other.name),
+            //BasicColumn::Name if other.name.ends_with('/') => Ordering::Less,
+            //BasicColumn::Name if self.name.ends_with('/') => Ordering::Greater,
+            // BasicColumn::Name => {
+            //     if self.name != ".." && self.name.starts_with('.') && other.name.starts_with('.') {
+            //         self.name.cmp(&other.name)
+            //     } else if self.name != ".."
+            //         && self.name.starts_with('.')
+            //         && !other.name.starts_with('.')
+            //     {
+            //         Ordering::Less
+            //     } else {
+            //         Ordering::Greater
+            //     }
+            // }
             BasicColumn::Count => Ordering::Equal,
             BasicColumn::Rate => Ordering::Equal,
         }
