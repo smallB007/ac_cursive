@@ -34,7 +34,7 @@ fn traverse_up(s: &mut Cursive, dialog_name: String, table_view_name: String) {
         s.call_on_name(
             &table_view_name,
             |table: &mut TableView<DirView, BasicColumn>| {
-                let items = prepare_items_for_table_view(&new_dialog_title);
+                let (longest_path, items) = prepare_items_for_table_view(&new_dialog_title);
                 table.set_items(items);
             },
         );
@@ -59,7 +59,7 @@ fn traverse_down(
         s.call_on_name(
             &table_view_name,
             |table: &mut TableView<DirView, BasicColumn>| {
-                let items = prepare_items_for_table_view(&new_dialog_title);
+                let (longest_path, items) = prepare_items_for_table_view(&new_dialog_title);
                 //table.remove_item(index);
                 table.set_items(items);
             },
