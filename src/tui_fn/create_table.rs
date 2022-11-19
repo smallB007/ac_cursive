@@ -1,7 +1,7 @@
 use cursive::{align::HAlign, views::Button};
 use cursive_table_view::{TableView, TableViewItem};
 use rand::Rng;
-use std::{any::Any, cmp::Ordering, path::PathBuf, rc::Rc};
+use std::{any::Any, cmp::Ordering, fmt::Debug, path::PathBuf, rc::Rc, time::SystemTime};
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub enum BasicColumn {
     Name,
@@ -11,16 +11,44 @@ pub enum BasicColumn {
 
 #[derive(Debug)]
 pub struct DirView {
-    pub name: String,
+    pub name: PathBuf,
     pub size: u64,
 }
-
+fn get_formatted_access_time(path: &str) -> String {
+    match fs::metadata(path) {
+        Ok(meta) => match meta.modified() {
+            Ok(modified) => format!("{:?}", modified),
+            Err(e) => String::from("Can't"),
+        },
+        Err(e) => format!("Cannot check modified:{}", path),
+    }
+}
 impl TableViewItem<BasicColumn> for DirView {
     fn to_column(&self, column: BasicColumn) -> String {
         match column {
-            BasicColumn::Name => self.name.clone(),
+            BasicColumn::Name
+                if self.name.as_os_str().to_string_lossy().to_string() != String::from("..") =>
+            {
+                eprintln!("NAME>>{:?}", self.name);
+                let path = if self.name.is_dir() {
+                    format!(
+                        "{}/",
+                        self.name.file_name().unwrap().to_string_lossy().to_string()
+                    )
+                } else {
+                    format!(
+                        "{}",
+                        self.name.file_name().unwrap().to_string_lossy().to_string()
+                    )
+                };
+                path
+            }
+            BasicColumn::Name => String::from(".."),
             BasicColumn::Count => format!("{}", self.size),
-            BasicColumn::Rate => format!("{}", 0),
+            BasicColumn::Rate => format!(
+                "{}",
+                get_formatted_access_time(&self.name.as_os_str().to_string_lossy().to_string())
+            ),
         }
     }
 
@@ -29,9 +57,13 @@ impl TableViewItem<BasicColumn> for DirView {
         Self: Sized,
     {
         match column {
-            BasicColumn::Name if self.name == ".." || other.name == ".." => Ordering::Greater,
+            BasicColumn::Name
+                if self.name == PathBuf::from("..") || other.name == PathBuf::from("..") =>
+            {
+                Ordering::Greater
+            }
             //Folders
-            BasicColumn::Name if self.name.ends_with('/') && other.name.ends_with('/') => {
+            BasicColumn::Name if self.name.is_dir() && other.name.is_dir() => {
                 if !self.name.starts_with(".") && other.name.starts_with(".") {
                     Ordering::Less
                 } else if self.name.starts_with(".") && !other.name.starts_with(".") {
@@ -41,14 +73,10 @@ impl TableViewItem<BasicColumn> for DirView {
                 }
             }
             //Folder file
-            BasicColumn::Name if self.name.ends_with('/') && !other.name.ends_with('/') => {
-                Ordering::Greater
-            }
-            BasicColumn::Name if !self.name.ends_with('/') && other.name.ends_with('/') => {
-                Ordering::Less
-            }
+            BasicColumn::Name if self.name.is_dir() && !other.name.is_dir() => Ordering::Greater,
+            BasicColumn::Name if !self.name.is_dir() && other.name.is_dir() => Ordering::Less,
             //Files
-            BasicColumn::Name if !self.name.ends_with('/') && !other.name.ends_with('/') => {
+            BasicColumn::Name if !self.name.is_dir() && !other.name.is_dir() => {
                 if self.name.starts_with(".") && !other.name.starts_with(".") {
                     Ordering::Greater
                 } else if !self.name.starts_with(".") && other.name.starts_with(".") {
@@ -83,27 +111,27 @@ pub fn prepare_items_for_table_view(dir: &str) -> (usize, Vec<DirView>) {
     let mut items = Vec::new();
     let has_parent = PathBuf::from(dir).parent().is_some();
     if has_parent {
-        let level_up_dir_entry = String::from("..");
+        let level_up_dir_entry = PathBuf::from("..");
         items.push(DirView {
             name: level_up_dir_entry,
             size: 0,
         });
     }
     for entry in dir_entries {
-        let path = if entry.is_dir() {
-            format!("{}/", entry.file_name().unwrap().to_str().unwrap())
-        } else {
-            String::from(entry.file_name().unwrap().to_str().unwrap())
-        };
-        if path.len() > longest_path {
-            longest_path = path.len();
-        }
-        eprintln!(">>entries: {:?}", entry);
+        //let path = if entry.is_dir() {
+        //    //format!("{}/", entry.as_path().display())
+        //} else {
+        //    //format!("{}", entry.as_path().display())
+        //};
+        longest_path = 0;
+        //if entry.len() > longest_path {
+        //}
+        //eprintln!(">>entries: {:?}", entry);
         if entry.is_symlink() {
             match fs::symlink_metadata(&entry) {
                 Ok(meta) => {
                     items.push(DirView {
-                        name: path,
+                        name: entry,
                         size: meta.len(),
                     });
                 }
@@ -115,7 +143,7 @@ pub fn prepare_items_for_table_view(dir: &str) -> (usize, Vec<DirView>) {
             match fs::metadata(&entry) {
                 Ok(meta) => {
                     items.push(DirView {
-                        name: path,
+                        name: entry,
                         size: meta.len(),
                     });
                 }
@@ -137,12 +165,13 @@ pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
             //} else {
             //    c.width_percent(70)
             //}
-            c
+            c.width_percent(80)
         })
         .column(BasicColumn::Count, "Size", |c| c.align(HAlign::Center))
         .column(BasicColumn::Rate, "Modify Time", |c| {
-            c.ordering(Ordering::Greater).align(HAlign::Right)
-            //.width_percent(20)
+            c.ordering(Ordering::Greater)
+                .align(HAlign::Right)
+                .width_percent(20)
         })
         .items(items)
 }

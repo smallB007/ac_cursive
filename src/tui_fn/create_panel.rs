@@ -47,7 +47,7 @@ fn traverse_down(
     s: &mut Cursive,
     dialog_name: String,
     table_view_name: String,
-    selected_item: String,
+    selected_item: PathBuf,
 ) {
     /*Third, combine them to form full path */
     let current_path = PathBuf::from(get_current_path_from_dialog_name(s, dialog_name.clone()));
@@ -84,7 +84,7 @@ pub fn create_panel(name: &str, dir: &str) -> ResizedView<NamedView<Dialog>> {
                 },
             )
             .unwrap();
-        if selected_item == ".." {
+        if selected_item == PathBuf::from("..") {
             traverse_up(s, dialog_name.clone(), table_view_name.clone());
         } else {
             traverse_down(

@@ -44,5 +44,5 @@ pub fn get_active_table_first_selected_item(s: &mut Cursive, active_table_name: 
         )
         .unwrap();
 
-    selected_item
+    selected_item.as_os_str().to_string_lossy().to_string()
 }
