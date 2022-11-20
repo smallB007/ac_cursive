@@ -14,10 +14,33 @@ pub struct DirView {
     pub name: PathBuf,
     pub size: u64,
 }
+use std::str;
+use time::Weekday::Wednesday;
+use time::{Date, OffsetDateTime, PrimitiveDateTime, UtcOffset};
+const DATE_FORMAT_STR: &'static str = "[day]-[month repr:short]-[year] [hour]:[minute]";
+fn pretty_print_system_time(t: SystemTime) -> String {
+    let mut res = Vec::new(); //++artie, with_capacity
+    let format = String::from(DATE_FORMAT_STR);
+
+    let utc = time::OffsetDateTime::UNIX_EPOCH
+        + time::Duration::try_from(t.duration_since(std::time::UNIX_EPOCH).unwrap()).unwrap();
+    let local = utc.to_offset(time::UtcOffset::local_offset_at(utc).unwrap());
+    local
+        .format_into(
+            //&mut std::io::stdout().lock(),
+            &mut res,
+            time::macros::format_description!(
+                // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
+                "[day]-[month repr:short]-[year] [hour]:[minute]"
+            ),
+        )
+        .unwrap();
+    String::from_utf8(res).unwrap()
+}
 fn get_formatted_access_time(path: &str) -> String {
     match fs::metadata(path) {
         Ok(meta) => match meta.modified() {
-            Ok(modified) => format!("{:?}", modified),
+            Ok(modified) => pretty_print_system_time(modified),
             Err(e) => String::from("Can't"),
         },
         Err(e) => format!("Cannot check modified:{}", path),
@@ -29,7 +52,8 @@ impl TableViewItem<BasicColumn> for DirView {
             BasicColumn::Name
                 if self.name.as_os_str().to_string_lossy().to_string() != String::from("..") =>
             {
-                eprintln!("NAME>>{:?}", self.name);
+                //++artie get fn pathbuf_to_lossy_string
+                //eprintln!("NAME>>{:?}", self.name);
                 let path = if self.name.is_dir() {
                     format!(
                         "{}/",
@@ -165,13 +189,15 @@ pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
             //} else {
             //    c.width_percent(70)
             //}
-            c.width_percent(80)
+            //c.width_percent(80)
+            c
         })
         .column(BasicColumn::Count, "Size", |c| c.align(HAlign::Center))
         .column(BasicColumn::Rate, "Modify Time", |c| {
             c.ordering(Ordering::Greater)
-                .align(HAlign::Right)
-                .width_percent(20)
+                .align(HAlign::Center)
+                .width(17)
+            //.width_percent(80)
         })
         .items(items)
 }
