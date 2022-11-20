@@ -18,6 +18,9 @@ use std::str;
 use time::Weekday::Wednesday;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, UtcOffset};
 const DATE_FORMAT_STR: &'static str = "[day]-[month repr:short]-[year] [hour]:[minute]";
+const FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
+    "[day]-[month repr:short]-[year repr:last_two] [hour]:[minute]"
+);
 fn pretty_print_system_time(t: SystemTime) -> String {
     let mut res = Vec::new(); //++artie, with_capacity
 
@@ -28,15 +31,14 @@ fn pretty_print_system_time(t: SystemTime) -> String {
         .format_into(
             //&mut std::io::stdout().lock(),
             &mut res,
-            //time::macros::format_description!(
-            //    // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
-            //    "[day]-[month repr:short]-[year repr:last_two] [hour]:[minute]"
-            //),
-            &time::format_description::parse(
-                // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
-                DATE_FORMAT_STR,
-            )
-            .unwrap(),
+            FORMAT, //time::macros::format_description!(
+                   //    // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
+                   //),
+                   //&time::format_description::parse(
+                   //    // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
+                   //    DATE_FORMAT_STR,
+                   //)
+                   //.unwrap(),
         )
         .unwrap();
     String::from_utf8(res).unwrap()
@@ -200,8 +202,8 @@ pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
         .column(BasicColumn::Rate, "Modify Time", |c| {
             c.ordering(Ordering::Greater)
                 .align(HAlign::Center)
-                .width(15)
-            //.width_percent(80)
+                .width(FORMAT.len() + 6) //++artie, why :)
+                                         //.width_percent(80)
         })
         .items(items)
 }
