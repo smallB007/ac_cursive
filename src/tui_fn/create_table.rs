@@ -20,7 +20,6 @@ use time::{Date, OffsetDateTime, PrimitiveDateTime, UtcOffset};
 const DATE_FORMAT_STR: &'static str = "[day]-[month repr:short]-[year] [hour]:[minute]";
 fn pretty_print_system_time(t: SystemTime) -> String {
     let mut res = Vec::new(); //++artie, with_capacity
-    let format = String::from(DATE_FORMAT_STR);
 
     let utc = time::OffsetDateTime::UNIX_EPOCH
         + time::Duration::try_from(t.duration_since(std::time::UNIX_EPOCH).unwrap()).unwrap();
@@ -29,10 +28,15 @@ fn pretty_print_system_time(t: SystemTime) -> String {
         .format_into(
             //&mut std::io::stdout().lock(),
             &mut res,
-            time::macros::format_description!(
+            //time::macros::format_description!(
+            //    // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
+            //    "[day]-[month repr:short]-[year repr:last_two] [hour]:[minute]"
+            //),
+            &time::format_description::parse(
                 // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
-                "[day]-[month repr:short]-[year repr:last_two] [hour]:[minute]"
-            ),
+                DATE_FORMAT_STR,
+            )
+            .unwrap(),
         )
         .unwrap();
     String::from_utf8(res).unwrap()
@@ -196,7 +200,7 @@ pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
         .column(BasicColumn::Rate, "Modify Time", |c| {
             c.ordering(Ordering::Greater)
                 .align(HAlign::Center)
-                .width(17)
+                .width(15)
             //.width_percent(80)
         })
         .items(items)
