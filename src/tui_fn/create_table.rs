@@ -31,7 +31,7 @@ fn pretty_print_system_time(t: SystemTime) -> String {
             &mut res,
             time::macros::format_description!(
                 // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
-                "[day]-[month repr:short]-[year] [hour]:[minute]"
+                "[day]-[month repr:short]-[year repr:last_two] [hour]:[minute]"
             ),
         )
         .unwrap();
