@@ -32,11 +32,20 @@ function readableBytes($bytes) {
 fn readableBytes(bytes: usize) -> String {
     static SIZES: [&str; 9] = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
     let inx = f64::floor(f64::log2(bytes as f64) / f64::log2(1024.0)) as usize;
-    format!(
-        "{:.2}{}",
-        bytes as f64 / f64::powf(1024 as f64, inx as f64),
-        SIZES[inx]
-    )
+
+    if inx != 0 {
+        format!(
+            "{:.2}{}",
+            bytes as f64 / f64::powf(1024 as f64, inx as f64),
+            SIZES[inx]
+        )
+    } else {
+        format!(
+            "{}{}",
+            bytes as f64 / f64::powf(1024 as f64, inx as f64),
+            SIZES[inx]
+        )
+    }
 }
 use time::Weekday::Wednesday;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, UtcOffset};
