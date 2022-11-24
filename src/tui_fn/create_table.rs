@@ -107,7 +107,13 @@ impl TableViewItem<BasicColumn> for DirView {
                 path
             }
             BasicColumn::Name => String::from(".."),
-            BasicColumn::Count => readableBytes(self.size as usize),
+            BasicColumn::Count => {
+                if !self.name.is_dir() {
+                    readableBytes(self.size as usize)
+                } else {
+                    String::from("DIR")
+                }
+            }
             BasicColumn::Rate => format!(
                 "{}",
                 get_formatted_access_time(&self.name.as_os_str().to_string_lossy().to_string())
