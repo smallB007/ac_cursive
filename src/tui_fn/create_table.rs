@@ -15,6 +15,29 @@ pub struct DirView {
     pub size: u64,
 }
 use std::str;
+/*
+/**
+ * Converts a long string of bytes into a readable format e.g KB, MB, GB, TB, YB
+ *
+ * @param {Int} num The number of bytes.
+ */
+function readableBytes($bytes) {
+    $i = floor(log($bytes) / log(1024));
+    $sizes = array('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB');
+
+    return sprintf('%.02F', $bytes / pow(1024, $i)) * 1 . ' ' . $sizes[$i];
+}
+*/
+
+fn readableBytes(bytes: usize) -> String {
+    static SIZES: [&str; 9] = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    let inx = f64::floor(f64::log2(bytes as f64) / f64::log2(1024.0)) as usize;
+    format!(
+        "{:.2}{}",
+        bytes as f64 / f64::powf(1024 as f64, inx as f64),
+        SIZES[inx]
+    )
+}
 use time::Weekday::Wednesday;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, UtcOffset};
 const DATE_FORMAT_STR: &'static str = "[day]-[month repr:short]-[year] [hour]:[minute]";
@@ -22,6 +45,7 @@ const FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format
     "[day]-[month repr:short]-[year repr:last_two] [hour]:[minute]"
 );
 fn pretty_print_system_time(t: SystemTime) -> String {
+    // readableBytes(21111024);
     let mut res = Vec::new(); //++artie, with_capacity
 
     let utc = time::OffsetDateTime::UNIX_EPOCH
@@ -74,7 +98,7 @@ impl TableViewItem<BasicColumn> for DirView {
                 path
             }
             BasicColumn::Name => String::from(".."),
-            BasicColumn::Count => format!("{}", self.size),
+            BasicColumn::Count => readableBytes(self.size as usize),
             BasicColumn::Rate => format!(
                 "{}",
                 get_formatted_access_time(&self.name.as_os_str().to_string_lossy().to_string())
@@ -198,7 +222,9 @@ pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
             //c.width_percent(80)
             c
         })
-        .column(BasicColumn::Count, "Size", |c| c.align(HAlign::Center))
+        .column(BasicColumn::Count, "Size", |c| {
+            c.align(HAlign::Right).width(8)
+        })
         .column(BasicColumn::Rate, "Modify Time", |c| {
             c.ordering(Ordering::Greater)
                 .align(HAlign::Center)
