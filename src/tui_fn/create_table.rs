@@ -111,7 +111,13 @@ impl TableViewItem<BasicColumn> for DirView {
                 if !self.name.is_dir() {
                     readableBytes(self.size as usize)
                 } else {
-                    String::from("DIR")
+                    if self.name.as_os_str().to_string_lossy().to_string() != String::from("..")
+                    //++artie rfctr
+                    {
+                        String::from("DIR")
+                    } else {
+                        String::from("UP DIR")
+                    }
                 }
             }
             BasicColumn::Rate => format!(
