@@ -49,9 +49,15 @@ pub fn create_view_table(file: &str) -> TableView<ViewStruct, ViewColumn> {
             content: String::from(line),
         });
     }
+    let number_of_lines = format!("{}", items.len());
 
     TableView::<ViewStruct, ViewColumn>::new()
-        .column(ViewColumn::Count, "Count", |c| c.width_percent(5))
-        .column(ViewColumn::Content, "Count", |c| c.align(HAlign::Left))
+        .column(
+            ViewColumn::Count,
+            "",
+            |c| c.width(number_of_lines.len()),
+            false,
+        )
+        .column(ViewColumn::Content, "", |c| c.align(HAlign::Left), false)
         .items(items)
 }

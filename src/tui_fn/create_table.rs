@@ -234,24 +234,37 @@ pub fn prepare_items_for_table_view(dir: &str) -> (usize, Vec<DirView>) {
 pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
     let (longest_path, items) = prepare_items_for_table_view(dir);
     TableView::<DirView, BasicColumn>::new()
-        .column(BasicColumn::Name, "Name", |c| {
-            //if longest_path < 50 {
-            //    c.width(longest_path)
-            //} else {
-            //    c.width_percent(70)
-            //}
-            //c.width_percent(80)
-            c
-        })
-        .column(BasicColumn::Count, "Size", |c| {
-            c.align(HAlign::Right).width(8)
-        })
-        .column(BasicColumn::Rate, "Modify Time", |c| {
-            c.ordering(Ordering::Greater)
-                .align(HAlign::Center)
-                .width(FORMAT.len() + 6) //++artie, why :)
-                                         //.width_percent(80)
-        })
+        .column(
+            BasicColumn::Name,
+            "Name",
+            |c| {
+                //if longest_path < 50 {
+                //    c.width(longest_path)
+                //} else {
+                //    c.width_percent(70)
+                //}
+                //c.width_percent(80)
+                c
+            },
+            true,
+        )
+        .column(
+            BasicColumn::Count,
+            "Size",
+            |c| c.align(HAlign::Right).width(8),
+            true,
+        )
+        .column(
+            BasicColumn::Rate,
+            "Modify Time",
+            |c| {
+                c.ordering(Ordering::Greater)
+                    .align(HAlign::Center)
+                    .width(FORMAT.len() + 6) //++artie, why :)
+                                             //.width_percent(80)
+            },
+            true,
+        )
         .items(items)
 }
 
