@@ -32,7 +32,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         .child(Button::new_raw("[ View/Edit ]", |s| {
             let active_table_name = get_active_table_name(s);
             let selected_item = get_active_table_first_selected_item(s, &active_table_name);
-            let view_layout = create_view_layout();
+            let view_layout = create_view_layout(&selected_item);
             s.add_fullscreen_layer(view_layout);
         }));
     let edit_layout = LinearLayout::horizontal()

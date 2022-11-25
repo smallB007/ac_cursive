@@ -7,10 +7,10 @@ use cursive::views::{
     Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView, TextView,
 };
 use cursive::{direction::Orientation, views::CircularFocus};
-pub fn create_view_layout() -> LinearLayout {
+pub fn create_view_layout(path: &str) -> LinearLayout {
     let mut layout_panes = LinearLayout::new(Orientation::Horizontal);
 
-    layout_panes.add_child(create_view_panel("Left", "LeftDialog"));
+    layout_panes.add_child(create_view_panel("Left", "LeftDialog", path));
 
     let buttons = create_view_buttons();
     let layout = LinearLayout::vertical().child(layout_panes).child(buttons);

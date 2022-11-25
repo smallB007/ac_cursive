@@ -1,5 +1,5 @@
 In order to attach as debugger to a running process:
 echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
-In order to check what was wrong if program doesn't pring anything and crashes after start:
+In order to check what was wrong if program doesn't print anything and crashes after start:
 cargo run 2> err_file
