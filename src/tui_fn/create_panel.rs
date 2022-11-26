@@ -71,13 +71,14 @@ fn traverse_down(
 }
 pub fn create_panel(name: &str, dir: &str) -> ResizedView<NamedView<Dialog>> {
     let table_view_name = create_name_for_table_view(name);
+    let table_view_clone = table_view_name.clone();
     let dialog_name = String::from(name);
     let table_view = create_table(dir); //.with_name(String::from(name) + "_tableview");
     let table_view = table_view.on_submit(move |s, r, index| {
         /*Second get the selected item */
         let selected_item = s
             .call_on_name(
-                &table_view_name,
+                &table_view_clone,
                 |table: &mut TableView<DirView, BasicColumn>| {
                     //table.remove_item(index);
                     table.get_selected_item().name.clone()
@@ -85,17 +86,17 @@ pub fn create_panel(name: &str, dir: &str) -> ResizedView<NamedView<Dialog>> {
             )
             .unwrap();
         if selected_item == PathBuf::from("..") {
-            traverse_up(s, dialog_name.clone(), table_view_name.clone());
+            traverse_up(s, dialog_name.clone(), table_view_clone.clone());
         } else {
             traverse_down(
                 s,
                 dialog_name.clone(),
-                table_view_name.clone(),
+                table_view_clone.clone(),
                 selected_item.clone(),
             );
         }
     });
-    let table_view = table_view.with_name(create_name_for_table_view(name));
+    let table_view = table_view.with_name(table_view_name);
     let named_v: ResizedView<NamedView<Dialog>> = Dialog::around(table_view)
         .title(dir)
         .with_name(name)
