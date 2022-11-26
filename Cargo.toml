@@ -11,10 +11,13 @@ time = { version = "0.3", features = ["macros"] }
 walkdir = "2"
 #cursive = "*"
 #cursive_table_view = "*"
-cursive = { git = "https://github.com/smallB007/cursive.git" }
+#cursive = { git = "https://github.com/smallB007/cursive.git" }
+cursive = { path = "/home/artie/Documents/Projects/rust/ac_cursive/src/cursive_forks/cursive/cursive" }
+
 #cursive_table_view = { git = "https://github.com/smallB007/cursive_table_view.git" }
-cursive_table_view = { path = "/home/artie/Documents/Projects/rust/cursive_table_view" }
+cursive_table_view = { path = "/home/artie/Documents/Projects/rust/ac_cursive/src/cursive_forks/cursive_table_view" }
 
 rand = "*"
 [patch.crates-io]
-cursive_core = { git = "https://github.com/smallB007/cursive.git" }
+#cursive_core = { git = "https://github.com/smallB007/cursive.git" }
+cursive_core = { path = "/home/artie/Documents/Projects/rust/ac_cursive/src/cursive_forks/cursive/cursive-core" }
