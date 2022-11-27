@@ -1,13 +1,16 @@
 use crate::cursive::view::Nameable;
 use crate::cursive::view::Resizable;
-use cursive::theme::ColorStyle;
 use cursive::views::{
     Button, Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView,
     TextView,
 };
+use cursive::{direction::Direction, theme::ColorStyle, View};
 use cursive::{direction::Orientation, views::CircularFocus};
+use cursive_table_view::{TableView, TableViewItem};
 
+use super::create_table::{BasicColumn, DirView};
 use crate::tui_fn::create_table::create_table;
+use crate::utils::common_utils::get_active_table_name;
 
 pub fn create_view_buttons() -> ResizedView<StackView> {
     let help_tuple = (
@@ -59,6 +62,7 @@ pub fn create_view_buttons() -> ResizedView<StackView> {
         .child(TextView::new("F10").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Quit ]", |s| {
             s.pop_layer();
+            s.on_event(cursive::event::Event::Key(cursive::event::Key::Up)); //hehe, this to bring the focus back where it was
         }));
 
     let classic_buttons = LinearLayout::horizontal()
