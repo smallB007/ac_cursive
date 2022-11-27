@@ -46,3 +46,28 @@ pub fn get_active_table_first_selected_item(s: &mut Cursive, active_table_name: 
 
     selected_item.as_os_str().to_string_lossy().to_string()
 }
+
+pub fn get_active_table_first_selected_index(s: &mut Cursive, active_table_name: &str) -> usize {
+    //++artie refactor, return ref to direntry
+    let selected_index = s
+        .call_on_name(
+            active_table_name,
+            |table: &mut NamedView<TableView<DirView, BasicColumn>>| match table.get_mut().item() {
+                Some(inx) => inx,
+                None => 0,
+            },
+        )
+        .unwrap();
+
+    selected_index
+}
+
+pub fn select_index(s: &mut Cursive, active_table_name: &str, item_index: usize) {
+    s.call_on_name(
+        active_table_name,
+        |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
+            table.get_mut().set_selected_item(item_index)
+        },
+    );
+    //.unwrap();
+}

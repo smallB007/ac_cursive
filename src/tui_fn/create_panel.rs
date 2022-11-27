@@ -97,7 +97,7 @@ pub fn create_panel(name: &str, dir: &str) -> ResizedView<NamedView<Dialog>> {
         }
     });
     let table_view = table_view.with_name(table_view_name);
-    let named_v: ResizedView<NamedView<Dialog>> = Dialog::around(table_view)
+    let named_v = Dialog::around(table_view)
         .title(dir)
         .with_name(name)
         .full_screen();
