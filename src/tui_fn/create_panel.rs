@@ -69,11 +69,20 @@ fn traverse_down(
         });
     }
 }
-pub fn create_panel(name: &str, dir: &str) -> ResizedView<NamedView<Dialog>> {
+pub fn create_panel(
+    name: &str,
+    dir: &str,
+    cb_peek: Option<fn(&mut Cursive, usize, usize)>,
+) -> ResizedView<NamedView<Dialog>> {
     let table_view_name = create_name_for_table_view(name);
     let table_view_clone = table_view_name.clone();
     let dialog_name = String::from(name);
     let table_view = create_table(dir); //.with_name(String::from(name) + "_tableview");
+    let table_view = if cb_peek.is_some() {
+        table_view.on_peek(cb_peek.unwrap())
+    } else {
+        table_view
+    };
     let table_view = table_view.on_submit(move |s, r, index| {
         /*Second get the selected item */
         let selected_item = s

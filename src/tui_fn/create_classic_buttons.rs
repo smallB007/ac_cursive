@@ -6,12 +6,12 @@ use crate::{
         get_active_table_name, select_index,
     },
 };
-use cursive::theme::ColorStyle;
 use cursive::views::{
     Button, Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView,
     TextView,
 };
 use cursive::{direction::Orientation, views::CircularFocus};
+use cursive::{theme::ColorStyle, Cursive};
 use cursive_table_view::TableView;
 
 use crate::tui_fn::{
@@ -20,7 +20,23 @@ use crate::tui_fn::{
     create_table::{create_table, BasicColumn, DirView},
     create_view_layout::create_view_layout,
 };
+fn prepare_peek_view(s: &mut Cursive) {
+    let active_table_name = get_active_table_name(s);
+    let selected_item = get_active_table_first_selected_item(s, &active_table_name);
+    let selected_item_inx = get_active_table_first_selected_index(s, &active_table_name);
+    let dialog_name = "Left";
+    let current_path = s
+        .call_on_name(&dialog_name, |s: &mut Dialog| {
+            let current_path = s.get_title();
+            String::from(current_path)
+        })
+        .unwrap();
+    let peek_layout = create_peek_layout(&current_path, &selected_item);
 
+    s.add_fullscreen_layer(peek_layout);
+    /*In order for table to be "searchable" it must be added to cursive */
+    select_index(s, "PeekPanelDir_tableview", selected_item_inx);
+}
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
         TextView::new("F1").style(ColorStyle::title_primary()),
@@ -28,23 +44,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
     );
     let help_layout = LinearLayout::horizontal()
         .child(TextView::new("F1").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Info ]", |s| {
-            let active_table_name = get_active_table_name(s);
-            let selected_item = get_active_table_first_selected_item(s, &active_table_name);
-            let selected_item_inx = get_active_table_first_selected_index(s, &active_table_name);
-            let dialog_name = "Left";
-            let current_path = s
-                .call_on_name(&dialog_name, |s: &mut Dialog| {
-                    let current_path = s.get_title();
-                    String::from(current_path)
-                })
-                .unwrap();
-            let peek_layout = create_peek_layout(&current_path, &selected_item);
-
-            s.add_fullscreen_layer(peek_layout);
-            /*In order for table to be "searchable" it must be added to cursive */
-            select_index(s, "PeekPanelDir_tableview", selected_item_inx);
-        }));
+        .child(Button::new_raw("[ Info ]", |s| {}));
     let menu_layout = LinearLayout::horizontal()
         .child(TextView::new("F2").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Popup ]", |s| {}));
@@ -58,7 +58,9 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         }));
     let edit_layout = LinearLayout::horizontal()
         .child(TextView::new("F4").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Peek ]", |s| {}));
+        .child(Button::new_raw("[ Peek ]", |s| {
+            prepare_peek_view(s);
+        }));
     let copy_layout = LinearLayout::horizontal()
         .child(TextView::new("F5").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Copy ]", |s| {}));

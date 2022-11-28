@@ -3,6 +3,7 @@ use std::{fs::DirEntry, path::PathBuf};
 use cursive::Cursive;
 
 use crate::tui_fn::create_table::{create_table, BasicColumn, DirView};
+
 use cursive::views::{
     Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView, TextView,
 };

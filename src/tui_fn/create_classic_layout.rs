@@ -7,8 +7,8 @@ use cursive::{direction::Orientation, views::CircularFocus};
 pub fn create_classic_layout(left_dir: &str, right_dir: &str) -> LinearLayout {
     let mut layout_panes = LinearLayout::new(Orientation::Horizontal);
 
-    layout_panes.add_child(create_panel("Left", left_dir));
-    layout_panes.add_child(create_panel("Right", right_dir));
+    layout_panes.add_child(create_panel("Left", left_dir, None));
+    layout_panes.add_child(create_panel("Right", right_dir, None));
 
     let layout_circular_panes = CircularFocus::new(layout_panes);
     let layout_circular_panes =
