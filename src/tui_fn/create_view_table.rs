@@ -35,14 +35,12 @@ fn f_read(file: &str) -> Result<String, std::io::Error> {
 }
 
 pub fn create_view_table(file: &str) -> TableView<ViewStruct, ViewColumn> {
-    //let file = "/home/artie/Documents/Artur Czajkowski/Poetry/Takie tam jebaneczko";
     let content = match f_read(file) {
         Ok(content) => content,
         Err(e) => e.to_string(),
     };
 
     let mut items = Vec::new();
-    ///home/artie/Documents/Artur Czajkowski/Poetry
     for (i, line) in content.lines().enumerate() {
         items.push(ViewStruct {
             count: i,
