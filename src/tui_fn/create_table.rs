@@ -8,7 +8,7 @@ pub enum BasicColumn {
     Count,
     Rate,
 }
-
+use crate::utils::common_utils::{pretty_print_system_time, readableBytes, FORMAT};
 #[derive(Debug)]
 pub struct DirView {
     pub name: PathBuf,
@@ -29,53 +29,9 @@ function readableBytes($bytes) {
 }
 */
 
-fn readableBytes(bytes: usize) -> String {
-    static SIZES: [&str; 9] = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
-    let inx = f64::floor(f64::log2(bytes as f64) / f64::log2(1024.0)) as usize;
-
-    if inx != 0 {
-        format!(
-            "{:.2}{}",
-            bytes as f64 / f64::powf(1024 as f64, inx as f64),
-            SIZES[inx]
-        )
-    } else {
-        format!(
-            "{}{}",
-            bytes as f64 / f64::powf(1024 as f64, inx as f64),
-            SIZES[inx]
-        )
-    }
-}
 use time::Weekday::Wednesday;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, UtcOffset};
-const DATE_FORMAT_STR: &'static str = "[day]-[month repr:short]-[year] [hour]:[minute]";
-const FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::format_description!(
-    "[day]-[month repr:short]-[year repr:last_two] [hour]:[minute]"
-);
-fn pretty_print_system_time(t: SystemTime) -> String {
-    // readableBytes(21111024);
-    let mut res = Vec::new(); //++artie, with_capacity
 
-    let utc = time::OffsetDateTime::UNIX_EPOCH
-        + time::Duration::try_from(t.duration_since(std::time::UNIX_EPOCH).unwrap()).unwrap();
-    let local = utc.to_offset(time::UtcOffset::local_offset_at(utc).unwrap());
-    local
-        .format_into(
-            //&mut std::io::stdout().lock(),
-            &mut res,
-            FORMAT, //time::macros::format_description!(
-                   //    // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
-                   //),
-                   //&time::format_description::parse(
-                   //    // "[day]-[month repr:numerical]-[year] [hour]:[minute]:[second]"
-                   //    DATE_FORMAT_STR,
-                   //)
-                   //.unwrap(),
-        )
-        .unwrap();
-    String::from_utf8(res).unwrap()
-}
 fn get_formatted_access_time(path: &str) -> String {
     match fs::metadata(path) {
         Ok(meta) => match meta.modified() {
