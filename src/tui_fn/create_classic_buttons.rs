@@ -83,7 +83,9 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         }));
     let copy_layout = LinearLayout::horizontal()
         .child(TextView::new("F5").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Copy ]", |s| {}));
+        .child(Button::new_raw("[ Copy ]", |s| {
+            let active_table = get_active_table_name(s);
+        }));
     let rn_mv_layout = LinearLayout::horizontal()
         .child(TextView::new("F6").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Rnm/Mv ]", |s| {}));

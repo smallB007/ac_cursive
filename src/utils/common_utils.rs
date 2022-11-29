@@ -2,8 +2,8 @@ use std::{fs::DirEntry, path::PathBuf, time::SystemTime};
 
 use cursive::Cursive;
 
+use crate::definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME};
 use crate::tui_fn::create_table::{create_table, BasicColumn, DirView};
-
 use cursive::views::{
     Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView, TextView,
 };
@@ -11,7 +11,7 @@ use cursive_table_view::{TableView, TableViewItem};
 pub fn get_active_table_name(s: &mut Cursive) -> String {
     let left_focus_time = s
         .call_on_name(
-            "Left_tableview",
+            LEFT_TABLE_VIEW_NAME,
             |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
                 table.get_mut().get_last_focus_time()
             },
@@ -20,7 +20,7 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
 
     let right_focus_time = s
         .call_on_name(
-            "Right_tableview",
+            RIGHT_TABLE_VIEW_NAME,
             |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
                 table.get_mut().get_last_focus_time()
             },
@@ -28,9 +28,9 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
         .unwrap();
 
     if left_focus_time > right_focus_time {
-        String::from("Right_tableview")
+        String::from(RIGHT_TABLE_VIEW_NAME)
     } else {
-        String::from("Left_tableview")
+        String::from(LEFT_TABLE_VIEW_NAME)
     }
 }
 
