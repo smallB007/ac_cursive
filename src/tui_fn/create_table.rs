@@ -8,7 +8,9 @@ pub enum BasicColumn {
     Count,
     Rate,
 }
-use crate::utils::common_utils::{pretty_print_system_time, readableBytes, FORMAT};
+use crate::utils::common_utils::{
+    pathbuf_to_lossy_string, pretty_print_system_time, readableBytes, FORMAT,
+};
 #[derive(Debug)]
 pub struct DirView {
     pub name: PathBuf,
@@ -44,9 +46,7 @@ fn get_formatted_access_time(path: &str) -> String {
 impl TableViewItem<BasicColumn> for DirView {
     fn to_column(&self, column: BasicColumn) -> String {
         match column {
-            BasicColumn::Name
-                if self.name.as_os_str().to_string_lossy().to_string() != String::from("..") =>
-            {
+            BasicColumn::Name if pathbuf_to_lossy_string(&self.name) != String::from("..") => {
                 //++artie get fn pathbuf_to_lossy_string
                 //eprintln!("NAME>>{:?}", self.name);
                 let path = if self.name.is_dir() {
@@ -67,7 +67,7 @@ impl TableViewItem<BasicColumn> for DirView {
                 if !self.name.is_dir() {
                     readableBytes(self.size as usize)
                 } else {
-                    if self.name.as_os_str().to_string_lossy().to_string() != String::from("..")
+                    if pathbuf_to_lossy_string(&self.name) != String::from("..")
                     //++artie rfctr
                     {
                         String::from("DIR")
@@ -78,7 +78,7 @@ impl TableViewItem<BasicColumn> for DirView {
             }
             BasicColumn::Rate => format!(
                 "{}",
-                get_formatted_access_time(&self.name.as_os_str().to_string_lossy().to_string())
+                get_formatted_access_time(&pathbuf_to_lossy_string(&self.name))
             ),
         }
     }

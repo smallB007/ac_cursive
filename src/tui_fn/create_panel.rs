@@ -1,7 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use crate::cursive::view::{Nameable, Resizable};
-use crate::tui_fn::create_table::{create_table, prepare_items_for_table_view};
+use crate::{
+    tui_fn::create_table::{create_table, prepare_items_for_table_view},
+    utils::common_utils::get_current_path_from_dialog_name,
+};
 use cursive::{
     views::{Dialog, HideableView, NamedView, ResizedView},
     Cursive,
@@ -13,17 +16,7 @@ use super::create_table::{BasicColumn, DirView};
 fn create_name_for_table_view(name: &str) -> String {
     String::from(String::from(name) + "_tableview")
 }
-fn get_current_path_from_dialog_name(s: &mut Cursive, dialog_name: String) -> String {
-    /*First get the dialog's title which is first path of dir */
-    let current_path = s
-        .call_on_name(&dialog_name, |s: &mut Dialog| {
-            let title = String::from(s.get_title());
-            title
-        })
-        .unwrap();
 
-    current_path
-}
 fn traverse_up(s: &mut Cursive, dialog_name: String, table_view_name: String) {
     /*Third, combine them to form full path */
     let current_path = get_current_path_from_dialog_name(s, dialog_name.clone());

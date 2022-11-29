@@ -1,4 +1,4 @@
-use std::{fs::DirEntry, path::PathBuf, time::SystemTime};
+use std::{ffi::OsStr, fs::DirEntry, path::PathBuf, time::SystemTime};
 
 use cursive::Cursive;
 
@@ -45,7 +45,25 @@ pub fn get_active_table_first_selected_item(s: &mut Cursive, active_table_name: 
         )
         .unwrap();
 
-    selected_item.as_os_str().to_string_lossy().to_string()
+    pathbuf_to_lossy_string(&selected_item)
+}
+
+pub fn get_active_table_selected_items(s: &mut Cursive, active_table_name: &str) -> Vec<String> {
+    let mut res = Vec::new();
+    //++artie refactor, return ref to direntry
+    s.call_on_name(
+        active_table_name,
+        |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
+            let table = table.get_mut();
+            let selected_items = table.get_selected_items();
+            for selected_item in selected_items {
+                res.push(pathbuf_to_lossy_string(&selected_item.name));
+            }
+        },
+    )
+    .unwrap();
+
+    res
 }
 
 pub fn get_active_table_first_selected_index(s: &mut Cursive, active_table_name: &str) -> usize {
@@ -117,4 +135,29 @@ pub fn readableBytes(bytes: usize) -> String {
             SIZES[inx]
         )
     }
+}
+
+pub fn get_current_path_from_dialog_name(s: &mut Cursive, dialog_name: String) -> String {
+    /*First get the dialog's title which is first path of dir */
+    let current_path = s
+        .call_on_name(&dialog_name, |s: &mut Dialog| {
+            let title = String::from(s.get_title());
+            title
+        })
+        .unwrap();
+
+    current_path
+}
+
+pub fn copy_file(src: &str, dest: &str) -> std::io::Result<()> {
+    std::fs::copy(src, dest)?;
+    Ok(())
+}
+
+pub fn pathbuf_to_lossy_string(path_buf: &PathBuf) -> String {
+    path_buf.as_os_str().to_string_lossy().to_string()
+}
+
+pub fn os_string_to_lossy_string(os_string: &OsStr) -> String {
+    os_string.to_string_lossy().to_string()
 }
