@@ -34,7 +34,7 @@ use tui_fn::{
 fn main() {
     let mut siv = cursive::default();
     create_menubar(&mut siv);
-    let classic_layout = create_classic_layout("/home", "/tmp");
+    let classic_layout = create_classic_layout("/home/artie/Desktop/Apprentice", "/tmp");
     siv.add_fullscreen_layer(classic_layout);
 
     siv.run();

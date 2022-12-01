@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Condvar, Mutex},
+};
 
 use crate::{
     cursive::view::Nameable,
@@ -17,6 +20,8 @@ use cursive::views::{
 use cursive::{direction::Orientation, views::CircularFocus};
 use cursive::{theme::ColorStyle, Cursive};
 use cursive_table_view::TableView;
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use notify_debouncer_mini::new_debouncer_opt;
 
 use crate::{
     definitions::definitions::{LEFT_PANEL_NAME, RIGHT_PANEL_NAME},
@@ -51,6 +56,26 @@ fn prepare_info_view(s: &mut Cursive) {
     s.add_fullscreen_layer(peek_layout);
     /*In order for table to be "searchable" it must be added to cursive */
     select_index(s, "InfoPanelDir_tableview", selected_item_inx);
+}
+fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    // Automatically select the best implementation for your platform.
+    // You can also access each implementation directly e.g. INotifyWatcher.
+    let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
+
+    // Add a path to be watched. All files and directories at that path and
+    // below will be monitored for changes.
+    watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
+
+    for res in rx.recv() {
+        match res {
+            Ok(event) => println!("changed: {:?}", event),
+            Err(e) => println!("watch error: {:?}", e),
+        }
+    }
+
+    Ok(())
 }
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
@@ -95,23 +120,90 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                     )
                 };
             let selected_items = get_active_table_selected_items(s, src_table);
-            eprintln!("{:?}", selected_items);
+            //eprintln!("{:?}", selected_items);
             let dest_path = get_current_path_from_dialog_name(s, String::from(dest_panel));
-            eprintln!("dest_path: {}", dest_path);
+            //eprintln!("dest_path: {}", dest_path);
             for selected_item in selected_items {
                 match PathBuf::from(&selected_item).file_name() {
                     Some(file_name) => {
+                        //std::thread::scope(|scoped| {
                         let full_dest_path =
                             format!("{}/{}", &dest_path, os_string_to_lossy_string(&file_name));
-                        eprintln!("full_dest_path: {full_dest_path}");
-                        match copy_file(&selected_item, &full_dest_path) {
-                            Ok(_) => {
-                                eprintln!("Copied")
+                        //eprintln!("full_dest_path: {full_dest_path}");
+                        let dest_path_clone = dest_path.clone();
+                        let full_dest_path_clone = full_dest_path.clone();
+                        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+                        //let arc_cond_var = Arc::new((Mutex::new(false), Condvar::new()));
+                        //let arc_cond_var_clone = arc_cond_var.clone();
+
+                        let _handle_copy = std::thread::spawn(move || {
+                            //let (lock, cvar) = &*arc_cond_var;
+                            //let mut started = lock.lock().unwrap();
+                            //*started = true;
+                            //// We notify the condvar that the value has changed.
+                            //cvar.notify_one();
+
+                            match copy_file(&selected_item, &full_dest_path) {
+                                Ok(_) => {
+                                    eprintln!("Copied");
+                                    tx.send(true);
+                                    return;
+                                }
+                                Err(e) => {
+                                    eprintln!("couldn't copy: {e}");
+                                    tx.send(true);
+                                    return;
+                                }
                             }
-                            Err(e) => {
-                                eprintln!("Couldn't cpy: {e}")
+                        });
+                        let _handle_read = std::thread::spawn(move || {
+                            /*First, lets wait for the copying thread to start */
+                            //let (lock, cond_var) = &*arc_cond_var_clone;
+                            //let mut started = lock.lock().unwrap();
+                            //while !*started {
+                            //    started = cond_var.wait(started).unwrap();
+                            //}
+                            loop {
+                                match rx.try_recv() {
+                                    Ok(res) => {
+                                        if res {
+                                            eprintln!("Received end of copying msg");
+                                            break;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Receiving error: {}", e);
+                                        // break;
+                                    }
+                                }
+                                let full_dest_path_clone_2 = full_dest_path_clone.clone();
+                                match std::fs::File::open(full_dest_path_clone_2) {
+                                    Ok(f) => {
+                                        let len = f.metadata().unwrap().len();
+                                        //eprintln!("opened, len: {len}");
+                                    }
+                                    Err(e) => {
+                                        eprintln!("couldn't open: {e}");
+                                    }
+                                }
+
+                                std::thread::sleep(std::time::Duration::from_secs(2));
                             }
-                        }
+                        });
+                        //handle_copy.join();
+                        //handle_read.join();
+                        //std::thread::spawn(move || watch(&dest_path_clone));
+                        //std::thread::spawn(move || {
+                        //    match copy_file(&selected_item, &full_dest_path) {
+                        //        Ok(_) => {
+                        //            eprintln!("Copied")
+                        //        }
+                        //        Err(e) => {
+                        //            eprintln!("Couldn't cpy: {e}")
+                        //        }
+                        //    }
+                        //});
+                        //scoped });
                     }
                     None => {
                         eprintln!("Couldn't copy {selected_item}");

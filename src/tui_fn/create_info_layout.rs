@@ -37,9 +37,9 @@ pub fn create_info_layout(dir: &str, path: &str) -> LinearLayout {
 }
 
 fn info_cb(s: &mut Cursive, row: usize, col: usize) {
-    eprintln!("info_cb: row: {}, col: {}", row, col);
+    // eprintln!("info_cb: row: {}, col: {}", row, col);
     let selected_path = get_active_table_first_selected_item(s, "InfoPanelDir_tableview");
-    eprintln!("selected_path:{}", selected_path);
+    //eprintln!("selected_path:{}", selected_path);
     s.call_on_name(
         "InfoLinearLayout",
         |layout: &mut NamedView<LinearLayout>| {

@@ -7,6 +7,10 @@ repository = "https://github.com/smallB007/ac_cursive.git"
 
 [dependencies]
 #numeric = "*"
+notify = { version = "5.0.0" }
+notify-debouncer-mini = { version = "0.2.0" }
+futures = "0.3"
+
 time = { version = "0.3", features = ["macros"] }
 walkdir = "2"
 #cursive = "*"

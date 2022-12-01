@@ -37,9 +37,9 @@ pub fn create_peek_layout(dir: &str, path: &str) -> LinearLayout {
 }
 
 fn peek_cb(s: &mut Cursive, row: usize, col: usize) {
-    eprintln!("peek_cb: row: {}, col: {}", row, col);
+    //eprintln!("peek_cb: row: {}, col: {}", row, col);
     let selected_path = get_active_table_first_selected_item(s, "PeekPanelDir_tableview");
-    eprintln!("selected_path:{}", selected_path);
+    //eprintln!("selected_path:{}", selected_path);
     s.call_on_name(
         "PeekLinearLayout",
         |layout: &mut NamedView<LinearLayout>| {
