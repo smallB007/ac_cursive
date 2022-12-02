@@ -77,6 +77,78 @@ fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
 
     Ok(())
 }
+
+fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str) {
+    let selected_item_clone = String::from(selected_item);
+    let full_dest_path_clone = String::from(full_dest_path);
+    let full_dest_path_clone_2 = String::from(full_dest_path);
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::thread;
+
+    let pair = Arc::new((Mutex::new(false), Condvar::new()));
+    let pair2 = Arc::clone(&pair);
+
+    // Inside of our lock, spawn a new thread, and then wait for it to start.
+    thread::spawn(move || {
+        let (lock, cvar) = &*pair2;
+        {
+            let mut started = lock.lock().unwrap();
+            *started = true;
+            drop(started); //++artie, unbelievable, manual mem management...
+        }
+        // We notify the condvar that the value has changed.
+        cvar.notify_one();
+        match copy_file(&selected_item_clone, &full_dest_path_clone) {
+            Ok(_) => {
+                eprintln!("Copied");
+                tx.send(true);
+                return;
+            }
+            Err(e) => {
+                eprintln!("couldn't copy: {e}");
+                tx.send(true);
+                return;
+            }
+        }
+    });
+
+    // Wait for the thread to start up.
+    let (lock, cvar) = &*pair;
+    let mut started = lock.lock().unwrap();
+    while !*started {
+        started = cvar.wait(started).unwrap();
+    }
+    drop(started); //++artie, unbelievable, manual mem management...
+
+    println!("Copying thread started. Proceeding to spawn watch thread.");
+    let _handle_read = std::thread::spawn(move || loop {
+        match rx.try_recv() {
+            Ok(res) => {
+                if res {
+                    eprintln!("Received end of copying msg");
+                    break;
+                }
+            }
+            Err(e) => {
+                eprintln!("Receiving error: {}", e);
+            }
+        }
+        let full_dest_path_clone_2_clone = full_dest_path_clone_2.clone();
+        match std::fs::File::open(full_dest_path_clone_2_clone) {
+            Ok(f) => {
+                let len = f.metadata().unwrap().len();
+                eprintln!("opened, len: {len}");
+            }
+            Err(e) => {
+                eprintln!("couldn't open: {e}");
+            }
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    });
+}
+
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
         TextView::new("F1").style(ColorStyle::title_primary()),
@@ -89,7 +161,9 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         }));
     let menu_layout = LinearLayout::horizontal()
         .child(TextView::new("F2").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Popup ]", |s| {}));
+        .child(Button::new_raw("[ Popup ]", |s| {
+            // main_waiting_for_thread();
+        }));
     let view_layout = LinearLayout::horizontal()
         .child(TextView::new("F3").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ View/Edit ]", |s| {
@@ -132,17 +206,18 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                         //eprintln!("full_dest_path: {full_dest_path}");
                         let dest_path_clone = dest_path.clone();
                         let full_dest_path_clone = full_dest_path.clone();
-                        let (tx, rx) = std::sync::mpsc::sync_channel(1);
-                        //let arc_cond_var = Arc::new((Mutex::new(false), Condvar::new()));
-                        //let arc_cond_var_clone = arc_cond_var.clone();
+                        //let (tx, rx) = std::sync::mpsc::sync_channel(1);
+                        main_waiting_for_thread(&selected_item, &full_dest_path);
+                        /*
+                        let arc_cond_var = Arc::new((Mutex::new(false), Condvar::new()));
+                        let arc_cond_var_clone = arc_cond_var.clone();
 
                         let _handle_copy = std::thread::spawn(move || {
-                            //let (lock, cvar) = &*arc_cond_var;
-                            //let mut started = lock.lock().unwrap();
-                            //*started = true;
-                            //// We notify the condvar that the value has changed.
-                            //cvar.notify_one();
-
+                            let (lock, cvar) = &*arc_cond_var;
+                            let mut started = lock.lock().unwrap();
+                            *started = true;
+                            // We notify the condvar that the value has changed.
+                            cvar.notify_all();
                             match copy_file(&selected_item, &full_dest_path) {
                                 Ok(_) => {
                                     eprintln!("Copied");
@@ -156,13 +231,13 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                                 }
                             }
                         });
+                        /*First, lets wait for the readying thread to start */
+                        let (lock, cond_var) = &*arc_cond_var_clone;
+                        let mut started = lock.lock().unwrap();
+                        while !*started {
+                            started = cond_var.wait(started).unwrap();
+                        }
                         let _handle_read = std::thread::spawn(move || {
-                            /*First, lets wait for the copying thread to start */
-                            //let (lock, cond_var) = &*arc_cond_var_clone;
-                            //let mut started = lock.lock().unwrap();
-                            //while !*started {
-                            //    started = cond_var.wait(started).unwrap();
-                            //}
                             loop {
                                 match rx.try_recv() {
                                     Ok(res) => {
@@ -190,6 +265,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                                 std::thread::sleep(std::time::Duration::from_secs(2));
                             }
                         });
+                        */
                         //handle_copy.join();
                         //handle_read.join();
                         //std::thread::spawn(move || watch(&dest_path_clone));
