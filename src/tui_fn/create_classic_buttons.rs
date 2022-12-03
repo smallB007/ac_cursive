@@ -13,13 +13,17 @@ use crate::{
     },
 };
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
-use cursive::views::{
-    Button, Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView,
-    TextView,
-};
 use cursive::{direction::Orientation, views::CircularFocus};
 use cursive::{theme::ColorStyle, Cursive};
+use cursive::{
+    views::{
+        Button, Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView,
+        TextView,
+    },
+    CbSink,
+};
 use cursive_table_view::TableView;
+use futures::channel::mpsc::Sender;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_mini::new_debouncer_opt;
 
@@ -78,7 +82,7 @@ fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
     Ok(())
 }
 
-fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str) {
+fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str, cb_sink: CbSink) {
     let selected_item_clone = String::from(selected_item);
     let full_dest_path_clone = String::from(full_dest_path);
     let full_dest_path_clone_2 = String::from(full_dest_path);
@@ -88,7 +92,7 @@ fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str) {
 
     let pair = Arc::new((Mutex::new(false), Condvar::new()));
     let pair2 = Arc::clone(&pair);
-
+    let cb_sink_clone = cb_sink.clone();
     // Inside of our lock, spawn a new thread, and then wait for it to start.
     thread::spawn(move || {
         let (lock, cvar) = &*pair2;
@@ -102,15 +106,19 @@ fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str) {
         match copy_file(&selected_item_clone, &full_dest_path_clone) {
             Ok(_) => {
                 eprintln!("Copied");
-                tx.send(true);
-                return;
             }
             Err(e) => {
                 eprintln!("couldn't copy: {e}");
-                tx.send(true);
-                return;
             }
         }
+        tx.send(true);
+        let _ = cb_sink_clone
+            .send(Box::new(|s| {
+                close_cpy_dlg(s);
+            }))
+            .unwrap();
+
+        return;
     });
 
     // Wait for the thread to start up.
@@ -131,17 +139,21 @@ fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str) {
                 }
             }
             Err(e) => {
-                eprintln!("Receiving error: {}", e);
+                //eprintln!("Receiving error: {}", e);
             }
         }
         let full_dest_path_clone_2_clone = full_dest_path_clone_2.clone();
         match std::fs::File::open(full_dest_path_clone_2_clone) {
             Ok(f) => {
                 let len = f.metadata().unwrap().len();
-                eprintln!("opened, len: {len}");
+                //eprintln!("opened, len: {len}");
+                let percent = len;
+                cb_sink
+                    .send(Box::new(move |siv| update_copy_dlg(siv, percent)))
+                    .unwrap();
             }
             Err(e) => {
-                eprintln!("couldn't open: {e}");
+                // eprintln!("couldn't open: {e}");
             }
         }
 
@@ -149,6 +161,23 @@ fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str) {
     });
 }
 
+fn update_copy_dlg(s: &mut Cursive, percent: u64) {
+    s.call_on_name("cpy_percent", |text_view: &mut TextView| {
+        text_view.set_content(format!("{percent}"));
+    })
+    .unwrap();
+}
+fn close_cpy_dlg(s: &mut Cursive) {
+    match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
+        /*If call on name succeeds it means that dlg with that name exists */
+        Some(v) => {
+            if v == true {
+                s.pop_layer();
+            }
+        }
+        None => {}
+    }
+}
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
         TextView::new("F1").style(ColorStyle::title_primary()),
@@ -161,9 +190,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         }));
     let menu_layout = LinearLayout::horizontal()
         .child(TextView::new("F2").style(ColorStyle::title_primary()))
-        .child(Button::new_raw("[ Popup ]", |s| {
-            // main_waiting_for_thread();
-        }));
+        .child(Button::new_raw("[ Popup ]", |s| {}));
     let view_layout = LinearLayout::horizontal()
         .child(TextView::new("F3").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ View/Edit ]", |s| {
@@ -207,7 +234,12 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                         let dest_path_clone = dest_path.clone();
                         let full_dest_path_clone = full_dest_path.clone();
                         //let (tx, rx) = std::sync::mpsc::sync_channel(1);
-                        main_waiting_for_thread(&selected_item, &full_dest_path);
+                        let cpy_dlg = Dialog::around(TextView::new("").with_name("cpy_percent"))
+                            .with_name("cpy_dlg");
+                        s.add_layer(cpy_dlg);
+                        let cb_sink = s.cb_sink().clone();
+                        main_waiting_for_thread(&selected_item, &full_dest_path, cb_sink);
+
                         /*
                         let arc_cond_var = Arc::new((Mutex::new(false), Condvar::new()));
                         let arc_cond_var_clone = arc_cond_var.clone();

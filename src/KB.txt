@@ -3,3 +3,14 @@ echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
 In order to check what was wrong if program doesn't print anything and crashes after start:
 cargo run 2> err_file
+
+To supress warnings:
+On Linux or Mac:
+RUSTFLAGS=-Awarnings cargo build
+
+Powershell:
+$env:RUSTFLAGS = '-Awarnings'; 
+cargo build
+
+You can also add this to the top of the file you wish to disable warnings in:
+#![allow(warnings)]
