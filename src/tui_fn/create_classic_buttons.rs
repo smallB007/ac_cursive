@@ -84,6 +84,13 @@ fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
 
 fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str, cb_sink: CbSink) {
     let selected_item_clone = String::from(selected_item);
+    let selected_item_len = match PathBuf::from(selected_item).metadata() {
+        Ok(metadata) => metadata.len(),
+        Err(e) => {
+            eprintln!("Couldn't get len for path: {}", selected_item);
+            0
+        }
+    };
     let full_dest_path_clone = String::from(full_dest_path);
     let full_dest_path_clone_2 = String::from(full_dest_path);
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
@@ -134,7 +141,7 @@ fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str, cb_sink: C
         match rx.try_recv() {
             Ok(res) => {
                 if res {
-                    eprintln!("Received end of copying msg");
+                    //eprintln!("Received end of copying msg");
                     break;
                 }
             }
@@ -147,9 +154,9 @@ fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str, cb_sink: C
             Ok(f) => {
                 let len = f.metadata().unwrap().len();
                 //eprintln!("opened, len: {len}");
-                let percent = len;
+                let percent = (len as f64 / selected_item_len as f64) * 100_f64;
                 cb_sink
-                    .send(Box::new(move |siv| update_copy_dlg(siv, percent)))
+                    .send(Box::new(move |siv| update_copy_dlg(siv, percent as u64)))
                     .unwrap();
             }
             Err(e) => {
@@ -224,7 +231,28 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             //eprintln!("{:?}", selected_items);
             let dest_path = get_current_path_from_dialog_name(s, String::from(dest_panel));
             //eprintln!("dest_path: {}", dest_path);
-            for selected_item in selected_items {
+            let cpy_dlg = Dialog::around(
+                LinearLayout::vertical()
+                    .child(TextView::new(format!(
+                        "Copying {} of {} ",
+                        1, //+1 because we want Copying 1 of 1 not 0 of 1
+                        selected_items.len()
+                    )))
+                    .child(
+                        LinearLayout::horizontal()
+                            .child(TextView::new("Copied: "))
+                            .child(TextView::new("").with_name("cpy_percent"))
+                            .child(TextView::new("%")),
+                    ),
+            )
+            .button("Cancel", |s| {})
+            .button("Pause", |s| {})
+            .button("Background", |s| {})
+            .title("Copy")
+            .with_name("cpy_dlg");
+            s.add_layer(cpy_dlg);
+
+            for (inx, selected_item) in selected_items.iter().enumerate() {
                 match PathBuf::from(&selected_item).file_name() {
                     Some(file_name) => {
                         //std::thread::scope(|scoped| {
@@ -234,9 +262,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                         let dest_path_clone = dest_path.clone();
                         let full_dest_path_clone = full_dest_path.clone();
                         //let (tx, rx) = std::sync::mpsc::sync_channel(1);
-                        let cpy_dlg = Dialog::around(TextView::new("").with_name("cpy_percent"))
-                            .with_name("cpy_dlg");
-                        s.add_layer(cpy_dlg);
+
                         let cb_sink = s.cb_sink().clone();
                         main_waiting_for_thread(&selected_item, &full_dest_path, cb_sink);
 
