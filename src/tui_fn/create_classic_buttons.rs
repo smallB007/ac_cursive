@@ -82,97 +82,109 @@ fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
     Ok(())
 }
 
-fn main_waiting_for_thread(selected_item: &str, full_dest_path: &str, cb_sink: CbSink) {
-    let selected_item_clone = String::from(selected_item);
-    let selected_item_len = match PathBuf::from(selected_item).metadata() {
-        Ok(metadata) => metadata.len(),
-        Err(e) => {
-            eprintln!("Couldn't get len for path: {}", selected_item);
-            0
-        }
-    };
-    let full_dest_path_clone = String::from(full_dest_path);
-    let full_dest_path_clone_2 = String::from(full_dest_path);
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    use std::sync::{Arc, Condvar, Mutex};
-    use std::thread;
+fn copying_engine(
+    selected_item: &str,
+    selected_item_n: u64,
+    total_items: u64,
+    full_dest_path: &str,
+    cb_sink: CbSink,
+) {
+    std::thread::scope(|s| {
+        let selected_item_clone = String::from(selected_item);
+        let selected_item_len = match PathBuf::from(selected_item).metadata() {
+            Ok(metadata) => metadata.len(),
+            Err(e) => {
+                eprintln!("Couldn't get len for path: {}", selected_item);
+                0
+            }
+        };
+        let full_dest_path_clone = String::from(full_dest_path);
+        let full_dest_path_clone_2 = String::from(full_dest_path);
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        use std::sync::{Arc, Condvar, Mutex};
+        use std::thread;
 
-    let pair = Arc::new((Mutex::new(false), Condvar::new()));
-    let pair2 = Arc::clone(&pair);
-    let cb_sink_clone = cb_sink.clone();
-    // Inside of our lock, spawn a new thread, and then wait for it to start.
-    thread::spawn(move || {
-        let (lock, cvar) = &*pair2;
-        {
+        let pair = Arc::new((Mutex::new(false), Condvar::new()));
+        let pair2 = Arc::clone(&pair);
+        //let cb_sink_clone = cb_sink.clone();
+        // Inside of our lock, spawn a new thread, and then wait for it to start.
+        let _handle_cpy = s.spawn(move || {
+            let (lock, cvar) = &*pair2;
+
             let mut started = lock.lock().unwrap();
             *started = true;
+
+            // We notify the condvar that the value has changed.
+            cvar.notify_one();
             drop(started); //++artie, unbelievable, manual mem management...
-        }
-        // We notify the condvar that the value has changed.
-        cvar.notify_one();
-        match copy_file(&selected_item_clone, &full_dest_path_clone) {
-            Ok(_) => {
-                eprintln!("Copied");
-            }
-            Err(e) => {
-                eprintln!("couldn't copy: {e}");
-            }
-        }
-        tx.send(true);
-        let _ = cb_sink_clone
-            .send(Box::new(|s| {
-                close_cpy_dlg(s);
-            }))
-            .unwrap();
-
-        return;
-    });
-
-    // Wait for the thread to start up.
-    let (lock, cvar) = &*pair;
-    let mut started = lock.lock().unwrap();
-    while !*started {
-        started = cvar.wait(started).unwrap();
-    }
-    drop(started); //++artie, unbelievable, manual mem management...
-
-    println!("Copying thread started. Proceeding to spawn watch thread.");
-    let _handle_read = std::thread::spawn(move || loop {
-        match rx.try_recv() {
-            Ok(res) => {
-                if res {
-                    //eprintln!("Received end of copying msg");
-                    break;
+            match copy_file(&selected_item_clone, &full_dest_path_clone) {
+                Ok(_) => {
+                    eprintln!("Copied");
+                }
+                Err(e) => {
+                    eprintln!("couldn't copy: {e}");
                 }
             }
-            Err(e) => {
-                //eprintln!("Receiving error: {}", e);
-            }
-        }
-        let full_dest_path_clone_2_clone = full_dest_path_clone_2.clone();
-        match std::fs::File::open(full_dest_path_clone_2_clone) {
-            Ok(f) => {
-                let len = f.metadata().unwrap().len();
-                //eprintln!("opened, len: {len}");
-                let percent = (len as f64 / selected_item_len as f64) * 100_f64;
-                cb_sink
-                    .send(Box::new(move |siv| update_copy_dlg(siv, percent as u64)))
-                    .unwrap();
-            }
-            Err(e) => {
-                // eprintln!("couldn't open: {e}");
-            }
-        }
+            tx.send(true);
+        });
 
-        std::thread::sleep(std::time::Duration::from_millis(250));
+        // Wait for the thread to start up.
+        let (lock, cvar) = &*pair;
+        let mut started = lock.lock().unwrap();
+        while !*started {
+            started = cvar.wait(started).unwrap();
+        }
+        drop(started); //++artie, unbelievable, manual mem management...
+
+        println!("Copying thread started. Proceeding to spawn watch thread.");
+        let _handle_read = s.spawn(move || loop {
+            match rx.try_recv() {
+                Ok(res) => {
+                    if res {
+                        //eprintln!("Received end of copying msg");
+                        break;
+                    }
+                }
+                Err(e) => {
+                    //eprintln!("Receiving error: {}", e);
+                }
+            }
+            let full_dest_path_clone_2_clone = full_dest_path_clone_2.clone();
+            match std::fs::File::open(full_dest_path_clone_2_clone) {
+                Ok(f) => {
+                    let len = f.metadata().unwrap().len();
+                    //eprintln!("opened, len: {len}");
+                    let percent = (len as f64 / selected_item_len as f64) * 100_f64;
+                    cb_sink
+                        .send(Box::new(move |siv| {
+                            update_copy_dlg(siv, selected_item_n, total_items, percent as u64)
+                        }))
+                        .unwrap();
+                }
+                Err(e) => {
+                    // eprintln!("couldn't open: {e}");
+                }
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(250));
+        });
     });
 }
 
-fn update_copy_dlg(s: &mut Cursive, percent: u64) {
-    s.call_on_name("cpy_percent", |text_view: &mut TextView| {
+fn update_copy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, percent: u64) {
+    s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
+        text_view.set_content(format!("Copied {selected_item_n} of {total_items}",));
+    });
+    match s.call_on_name("cpy_percent", |text_view: &mut TextView| {
         text_view.set_content(format!("{percent}"));
-    })
-    .unwrap();
+    }) {
+        Some(_) => {
+            //eprintln!("update_copy_dlg success")
+        }
+        None => {
+            //eprintln!("update_copy_dlg NOT success")
+        }
+    }
 }
 fn close_cpy_dlg(s: &mut Cursive) {
     match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
@@ -233,14 +245,10 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             //eprintln!("dest_path: {}", dest_path);
             let cpy_dlg = Dialog::around(
                 LinearLayout::vertical()
-                    .child(TextView::new(format!(
-                        "Copying {} of {} ",
-                        1, //+1 because we want Copying 1 of 1 not 0 of 1
-                        selected_items.len()
-                    )))
+                    .child(TextView::new("").with_name("copied_n_of_x"))
                     .child(
                         LinearLayout::horizontal()
-                            .child(TextView::new("Copied: "))
+                            .child(TextView::new("Copied: ")) //++artie, just format!
                             .child(TextView::new("").with_name("cpy_percent"))
                             .child(TextView::new("%")),
                     ),
@@ -251,7 +259,8 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             .title("Copy")
             .with_name("cpy_dlg");
             s.add_layer(cpy_dlg);
-
+            let cb_sink_clone = s.cb_sink().clone();
+            let mut copying_jobs = Vec::new();
             for (inx, selected_item) in selected_items.iter().enumerate() {
                 match PathBuf::from(&selected_item).file_name() {
                     Some(file_name) => {
@@ -259,12 +268,19 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                         let full_dest_path =
                             format!("{}/{}", &dest_path, os_string_to_lossy_string(&file_name));
                         //eprintln!("full_dest_path: {full_dest_path}");
-                        let dest_path_clone = dest_path.clone();
-                        let full_dest_path_clone = full_dest_path.clone();
+                        //let dest_path_clone = dest_path.clone();
+                        //let full_dest_path_clone = full_dest_path.clone();
                         //let (tx, rx) = std::sync::mpsc::sync_channel(1);
 
                         let cb_sink = s.cb_sink().clone();
-                        main_waiting_for_thread(&selected_item, &full_dest_path, cb_sink);
+                        copying_jobs.push((
+                            selected_item.clone(),
+                            full_dest_path.clone(),
+                            cb_sink,
+                            inx,
+                            selected_items.len(),
+                        ));
+                        //copying_engine(&selected_item, &full_dest_path, cb_sink);
 
                         /*
                         let arc_cond_var = Arc::new((Mutex::new(false), Condvar::new()));
@@ -344,6 +360,38 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                     }
                 }
             }
+
+            std::thread::spawn(move || {
+                let copying_jobs_len = copying_jobs.len();
+                for (inx, copying_job) in copying_jobs.iter().enumerate() {
+                    let selected_item = copying_job.0.clone();
+                    let full_destination_path = copying_job.1.clone();
+                    let cb_sink = copying_job.2.clone();
+                    //let cb_sink_clone = cb_sink.clone(); //++artie only needed at the end
+                    let handle = std::thread::spawn(move || {
+                        copying_engine(
+                            &selected_item,
+                            inx as u64,
+                            copying_jobs_len as u64,
+                            &full_destination_path,
+                            cb_sink,
+                        );
+                    });
+                    handle.join();
+                    eprintln!("Finished copying: {}", inx);
+                }
+
+                match cb_sink_clone.send(Box::new(|s| {
+                    close_cpy_dlg(s);
+                })) {
+                    Ok(_) => {
+                        eprintln!("Sending close_cpy_dlg successfull")
+                    }
+                    Err(e) => {
+                        eprintln!("Sending close_cpy_dlg NOT successfull: {}", e)
+                    }
+                }
+            });
         }));
     let rn_mv_layout = LinearLayout::horizontal()
         .child(TextView::new("F6").style(ColorStyle::title_primary()))
