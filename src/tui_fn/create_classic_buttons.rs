@@ -190,10 +190,10 @@ fn update_copy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, perc
         text_view.set_content(format!("{percent}"));
     }) {
         Some(_) => {
-            //eprintln!("update_copy_dlg success")
+            eprintln!("update_copy_dlg success: {}", percent)
         }
         None => {
-            //eprintln!("update_copy_dlg NOT success")
+            eprintln!("update_copy_dlg NOT success: {}", percent)
         }
     }
 }
@@ -382,7 +382,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                 let (snd, rcv) = std::sync::mpsc::channel();
                 let srv_thread = std::thread::spawn(move || cp_server_main(snd));
                 let _ = rcv.recv();
-                if let Err(e) = cp_client_main(copying_jobs) {
+                if let Err(e) = cp_client_main(copying_jobs, &update_copy_dlg) {
                     eprintln!("Error during copying:{}", e);
                 }
 

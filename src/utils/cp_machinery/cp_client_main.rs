@@ -1,12 +1,20 @@
 use crate::tui_fn::create_classic_buttons::copying_job;
 use anyhow::Context;
+use cursive::{CbSink, Cursive};
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream, NameTypeSupport};
 
 use std::{
     io::{self, prelude::*, BufReader},
+    path::PathBuf,
     sync::mpsc::Sender,
 };
-pub fn cp_client_main(copy_jobs: Vec<copying_job>) -> anyhow::Result<()> {
+pub fn cp_client_main<F>(
+    copy_jobs: Vec<copying_job>,
+    update_cpy_dlg_callback: F,
+) -> anyhow::Result<()>
+where
+    F: FnOnce(&mut Cursive, u64, u64, u64) + 'static + std::marker::Send + std::marker::Copy,
+{
     // Pick a name. There isn't a helper function for this, mostly because it's largely unnecessary:
     // in Rust, `match` is your concise, readable and expressive decision making construct.
     let name = {
@@ -23,7 +31,54 @@ pub fn cp_client_main(copy_jobs: Vec<copying_job>) -> anyhow::Result<()> {
     // Preemptively allocate a sizeable buffer for reading.
     // This size should be enough and should be easy to find for the allocator.
     let mut buffer = String::with_capacity(128);
-    for copy_job in copy_jobs {
+    for (selected_item_n, copy_job) in copy_jobs.iter().enumerate() {
+        let selected_item = copy_job.source.clone();
+        let full_dest_path = copy_job.target.clone();
+        let total_items = copy_jobs.len();
+        let cb_sink = copy_job.cb_sink.clone();
+        let (snd_progress_watch, rcv_progress_watch) = std::sync::mpsc::channel();
+        let progress_watch_thread = std::thread::spawn(move || {
+            snd_progress_watch.send(()); //sync point, let know that the thread started
+            let selected_item_len = match PathBuf::from(&selected_item).metadata() {
+                Ok(metadata) => metadata.len(),
+                Err(e) => {
+                    eprintln!("Couldn't get len for path: {}", selected_item);
+                    0
+                }
+            };
+            loop {
+                let full_dest_path_clone = full_dest_path.clone();
+                match std::fs::File::open(full_dest_path_clone) {
+                    Ok(f) => {
+                        let len = f.metadata().unwrap().len();
+                        let percent = (len as f64 / selected_item_len as f64) * 100_f64;
+                        eprintln!("percent,  {percent}");
+                        if percent < 100_f64 {
+                            cb_sink
+                                .send(Box::new(move |siv| {
+                                    update_cpy_dlg_callback(
+                                        siv,
+                                        selected_item_n as u64,
+                                        total_items as u64,
+                                        percent as u64,
+                                    );
+                                }))
+                                .unwrap();
+                        } else {
+                            eprintln!("exiting percent,  {percent}");
+                            return;
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("couldn't open: {e}");
+                    }
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(250));
+            }
+        });
+        let _ = rcv_progress_watch.recv(); //++artie wait for thread to start
+
         // Create our connection. This will block until the server accepts our connection, but will fail
         // immediately if the server hasn't even started yet; somewhat similar to how happens with TCP,
         // where connecting to a port that's not bound to any server will send a "connection refused"
@@ -45,9 +100,12 @@ pub fn cp_client_main(copy_jobs: Vec<copying_job>) -> anyhow::Result<()> {
         // Print out the result, getting the newline for free!
         print!("Server answered: {}", buffer);
 
+        progress_watch_thread.join();
+
         if buffer == "stop" {
             break;
         }
+
         // Clear the buffer so that the next iteration will display new data instead of messages
         // stacking on top of one another.
         buffer.clear();
