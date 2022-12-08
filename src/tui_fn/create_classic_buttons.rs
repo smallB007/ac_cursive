@@ -3,13 +3,24 @@ use std::{
     sync::{Arc, Condvar, Mutex},
 };
 
+use anyhow::Context;
+use interprocess::local_socket::{LocalSocketListener, LocalSocketStream, NameTypeSupport};
+use std::{
+    io::{self, prelude::*, BufReader},
+    sync::mpsc::Sender,
+};
+
 use crate::{
     cursive::view::Nameable,
     definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME},
-    utils::common_utils::{
-        copy_file, get_active_table_first_selected_index, get_active_table_first_selected_item,
-        get_active_table_name, get_current_path_from_dialog_name, os_string_to_lossy_string,
-        select_index,
+    utils::{
+        common_utils::{
+            copy_file, get_active_table_first_selected_index, get_active_table_first_selected_item,
+            get_active_table_name, get_current_path_from_dialog_name, os_string_to_lossy_string,
+            select_index,
+        },
+        cp_machinery::cp_client_main::cp_client_main,
+        cp_machinery::cp_server_main::cp_server_main,
     },
 };
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
@@ -23,7 +34,7 @@ use cursive::{
     CbSink,
 };
 use cursive_table_view::TableView;
-use futures::channel::mpsc::Sender;
+//use futures::channel::mpsc::Sender;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_mini::new_debouncer_opt;
 
@@ -197,6 +208,12 @@ fn close_cpy_dlg(s: &mut Cursive) {
         None => {}
     }
 }
+pub struct copying_job {
+    pub source: String,
+    pub target: String,
+    pub cb_sink: CbSink,
+    pub inx: usize,
+}
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
         TextView::new("F1").style(ColorStyle::title_primary()),
@@ -260,7 +277,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             .with_name("cpy_dlg");
             s.add_layer(cpy_dlg);
             let cb_sink_clone = s.cb_sink().clone();
-            let mut copying_jobs = Vec::new();
+            let mut copying_jobs: Vec<copying_job> = Vec::new();
             for (inx, selected_item) in selected_items.iter().enumerate() {
                 match PathBuf::from(&selected_item).file_name() {
                     Some(file_name) => {
@@ -273,13 +290,13 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                         //let (tx, rx) = std::sync::mpsc::sync_channel(1);
 
                         let cb_sink = s.cb_sink().clone();
-                        copying_jobs.push((
-                            selected_item.clone(),
-                            full_dest_path.clone(),
+                        copying_jobs.push(copying_job {
+                            source: selected_item.clone(),
+                            target: full_dest_path.clone(),
                             cb_sink,
                             inx,
-                            selected_items.len(),
-                        ));
+                            // selected_items.len(),
+                        });
                         //copying_engine(&selected_item, &full_dest_path, cb_sink);
 
                         /*
@@ -360,8 +377,27 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                     }
                 }
             }
-
+            /*Copying in separate thread so GUI isn't blocked*/
             std::thread::spawn(move || {
+                let (snd, rcv) = std::sync::mpsc::channel();
+                let srv_thread = std::thread::spawn(move || cp_server_main(snd));
+                let _ = rcv.recv();
+                if let Err(e) = cp_client_main(copying_jobs) {
+                    eprintln!("Error during copying:{}", e);
+                }
+                srv_thread.join();
+                match cb_sink_clone.send(Box::new(|s| {
+                    close_cpy_dlg(s);
+                })) {
+                    Ok(_) => {
+                        eprintln!("Sending close_cpy_dlg successfull");
+                    }
+                    Err(e) => {
+                        eprintln!("Sending close_cpy_dlg NOT successfull: {}", e);
+                    }
+                }
+            });
+            /* std::thread::spawn(move || {
                 let copying_jobs_len = copying_jobs.len();
                 for (inx, copying_job) in copying_jobs.iter().enumerate() {
                     let selected_item = copying_job.0.clone();
@@ -377,7 +413,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                             cb_sink,
                         );
                     });
-                    handle.join();
+                    handle.join(); //and we make suer that we are copying in organized, well defined order
                     eprintln!("Finished copying: {}", inx);
                 }
 
@@ -392,6 +428,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                     }
                 }
             });
+            */
         }));
     let rn_mv_layout = LinearLayout::horizontal()
         .child(TextView::new("F6").style(ColorStyle::title_primary()))
