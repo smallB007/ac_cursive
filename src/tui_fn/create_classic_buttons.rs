@@ -385,6 +385,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                 if let Err(e) = cp_client_main(copying_jobs) {
                     eprintln!("Error during copying:{}", e);
                 }
+
                 srv_thread.join();
                 match cb_sink_clone.send(Box::new(|s| {
                     close_cpy_dlg(s);

@@ -76,9 +76,13 @@ another process and try again.",
             .context("Socket receive failed")?;
 
         // Print out the result, getting the newline for free!
-        print!("Client answered: {}", buffer);
-
+        print!("Client first read answered: {}", buffer);
+        // Let's add an exit condition to shut the server down gracefully.
+        if buffer == "server_stop\n" {
+            break;
+        }
         let src_target: Vec<&str> = buffer.split(':').collect();
+
         match cp_path(&src_target[0], &src_target[1]) {
             Some(cp_err) => {
                 conn.get_mut()
@@ -90,16 +94,6 @@ another process and try again.",
                     .write_all(format!("Copying finished: {}!\n", &src_target[0]).as_bytes())
                     .context("Socket send write_all 2 failed")?;
             }
-        }
-
-        // Now that the read has come through and the client is waiting on the server's write, do
-        // it. (`.get_mut()` is to get the writer, `BufReader` doesn't implement a pass-through
-        // `Write`.)
-        //conn.get_mut().write_all(b"Hello from server!\n")?;
-
-        // Let's add an exit condition to shut the server down gracefully.
-        if buffer == "server_stop\n" {
-            break;
         }
 
         // Clear the buffer so that the next iteration will display new data instead of messages

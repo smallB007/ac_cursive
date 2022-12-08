@@ -23,7 +23,6 @@ pub fn cp_client_main(copy_jobs: Vec<copying_job>) -> anyhow::Result<()> {
     // Preemptively allocate a sizeable buffer for reading.
     // This size should be enough and should be easy to find for the allocator.
     let mut buffer = String::with_capacity(128);
-
     for copy_job in copy_jobs {
         // Create our connection. This will block until the server accepts our connection, but will fail
         // immediately if the server hasn't even started yet; somewhat similar to how happens with TCP,
@@ -45,12 +44,17 @@ pub fn cp_client_main(copy_jobs: Vec<copying_job>) -> anyhow::Result<()> {
 
         // Print out the result, getting the newline for free!
         print!("Server answered: {}", buffer);
+
         if buffer == "stop" {
             break;
         }
+        // Clear the buffer so that the next iteration will display new data instead of messages
+        // stacking on top of one another.
+        buffer.clear();
     }
     /*Send final msg to the server so it can exit */
-    let conn = LocalSocketStream::connect(name).context("Failed to connect to server")?; //++artie rfctr
+    let conn = LocalSocketStream::connect(name).context("Failed to connect to server")?;
+    // Wrap it into a buffered reader right away so that we could read a single line out of it.
     let mut conn = BufReader::new(conn);
     conn.get_mut()
         .write_all(b"server_stop\n")
