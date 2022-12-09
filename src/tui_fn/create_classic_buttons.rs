@@ -278,7 +278,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             s.add_layer(cpy_dlg);
             let cb_sink_clone = s.cb_sink().clone();
             let mut copying_jobs: Vec<copying_job> = Vec::new();
-            for (inx, selected_item) in selected_items.iter().enumerate() {
+            for (inx, selected_item) in selected_items {
                 match PathBuf::from(&selected_item).file_name() {
                     Some(file_name) => {
                         //std::thread::scope(|scoped| {

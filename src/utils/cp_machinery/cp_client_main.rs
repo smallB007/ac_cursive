@@ -75,7 +75,6 @@ where
                     }
                 }
 
-                std::thread::sleep(std::time::Duration::from_millis(250));
                 {
                     match break_condition_clone.try_lock() {
                         Ok(mutex_guard) => {
@@ -86,6 +85,7 @@ where
                         Err(_) => {}
                     }
                 }
+                std::thread::sleep(std::time::Duration::from_millis(250));
             }
         });
         let _ = rcv_progress_watch.recv(); //++artie wait for thread to start
