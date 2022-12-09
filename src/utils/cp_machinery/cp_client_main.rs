@@ -6,7 +6,7 @@ use interprocess::local_socket::{LocalSocketListener, LocalSocketStream, NameTyp
 use std::{
     io::{self, prelude::*, BufReader},
     path::PathBuf,
-    sync::mpsc::Sender,
+    sync::{mpsc::Sender, Arc, Condvar, Mutex},
 };
 pub fn cp_client_main<F>(
     copy_jobs: Vec<copying_job>,
@@ -36,6 +36,8 @@ where
         let full_dest_path = copy_job.target.clone();
         let total_items = copy_jobs.len();
         let cb_sink = copy_job.cb_sink.clone();
+        let break_condition = Arc::new((Mutex::new(false)));
+        let break_condition_clone = break_condition.clone();
         let (snd_progress_watch, rcv_progress_watch) = std::sync::mpsc::channel();
         let progress_watch_thread = std::thread::spawn(move || {
             snd_progress_watch.send(()); //sync point, let know that the thread started
@@ -52,22 +54,21 @@ where
                     Ok(f) => {
                         let len = f.metadata().unwrap().len();
                         let percent = (len as f64 / selected_item_len as f64) * 100_f64;
-                        eprintln!("percent,  {percent}");
-                        if percent < 100_f64 {
-                            cb_sink
-                                .send(Box::new(move |siv| {
-                                    update_cpy_dlg_callback(
-                                        siv,
-                                        selected_item_n as u64,
-                                        total_items as u64,
-                                        percent as u64,
-                                    );
-                                }))
-                                .unwrap();
-                        } else {
-                            eprintln!("exiting percent,  {percent}");
-                            return;
-                        }
+                        // eprintln!("percent,  {percent}");
+                        cb_sink
+                            .send(Box::new(move |siv| {
+                                update_cpy_dlg_callback(
+                                    siv,
+                                    selected_item_n as u64,
+                                    total_items as u64,
+                                    percent as u64,
+                                );
+                            }))
+                            .unwrap();
+                        // if percent >= 100_f64 {
+                        //     eprintln!("exiting percent,  {percent}");
+                        //     return;
+                        // }
                     }
                     Err(e) => {
                         eprintln!("couldn't open: {e}");
@@ -75,6 +76,16 @@ where
                 }
 
                 std::thread::sleep(std::time::Duration::from_millis(250));
+                {
+                    match break_condition_clone.try_lock() {
+                        Ok(mutex_guard) => {
+                            if *mutex_guard == true {
+                                break;
+                            }
+                        }
+                        Err(_) => {}
+                    }
+                }
             }
         });
         let _ = rcv_progress_watch.recv(); //++artie wait for thread to start
@@ -99,7 +110,10 @@ where
 
         // Print out the result, getting the newline for free!
         print!("Server answered: {}", buffer);
-
+        {
+            let mut mutex_guard = break_condition.lock().unwrap();
+            *mutex_guard = true;
+        }
         progress_watch_thread.join();
 
         if buffer == "stop" {

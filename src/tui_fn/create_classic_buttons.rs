@@ -173,7 +173,7 @@ fn copying_engine(
                         .unwrap();
                 }
                 Err(e) => {
-                    // eprintln!("couldn't open: {e}");
+                    eprintln!("couldn't open: {e}");
                 }
             }
 

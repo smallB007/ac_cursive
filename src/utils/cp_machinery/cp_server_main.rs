@@ -66,7 +66,7 @@ another process and try again.",
         // Wrap the connection into a buffered reader right away
         // so that we could read a single line out of it.
         let mut conn = BufReader::new(conn);
-        println!("Incoming connection!");
+        eprintln!("Incoming connection!");
 
         // Since our client example writes first, the server should read a line and only then send a
         // response. Otherwise, because reading and writing on a connection cannot be simultaneous
@@ -76,7 +76,7 @@ another process and try again.",
             .context("Socket receive failed")?;
 
         // Print out the result, getting the newline for free!
-        print!("Client first read answered: {}", buffer);
+        eprintln!("Client first read answered: {}", buffer);
         // Let's add an exit condition to shut the server down gracefully.
         if buffer == "server_stop\n" {
             break;
