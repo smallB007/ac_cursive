@@ -182,6 +182,15 @@ fn copying_engine(
     });
 }
 
+fn deselect_copied_item(s: &mut Cursive, copied_item_inx: usize) {
+    s.call_on_name(
+        LEFT_TABLE_VIEW_NAME,
+        |table: &mut TableView<DirView, BasicColumn>| {
+            table.deselect_item(copied_item_inx);
+        },
+    );
+}
+
 fn update_copy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, percent: u64) {
     s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
         text_view.set_content(format!("Copied {selected_item_n} of {total_items}",));
@@ -382,7 +391,9 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                 let (snd, rcv) = std::sync::mpsc::channel();
                 let srv_thread = std::thread::spawn(move || cp_server_main(snd));
                 let _ = rcv.recv();
-                if let Err(e) = cp_client_main(copying_jobs, &update_copy_dlg) {
+                if let Err(e) =
+                    cp_client_main(copying_jobs, &update_copy_dlg, &deselect_copied_item)
+                {
                     eprintln!("Error during copying:{}", e);
                 }
 

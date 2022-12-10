@@ -8,12 +8,14 @@ use std::{
     path::PathBuf,
     sync::{mpsc::Sender, Arc, Condvar, Mutex},
 };
-pub fn cp_client_main<F>(
+pub fn cp_client_main<F, F2>(
     copy_jobs: Vec<copying_job>,
     update_cpy_dlg_callback: F,
+    deselect_copied_item_callback: F2,
 ) -> anyhow::Result<()>
 where
     F: FnOnce(&mut Cursive, u64, u64, u64) + 'static + std::marker::Send + std::marker::Copy,
+    F2: FnOnce(&mut Cursive, usize) + 'static + std::marker::Send + std::marker::Copy,
 {
     // Pick a name. There isn't a helper function for this, mostly because it's largely unnecessary:
     // in Rust, `match` is your concise, readable and expressive decision making construct.
@@ -115,6 +117,14 @@ where
             *mutex_guard = true;
         }
         progress_watch_thread.join();
+        /*Deselect copied item */
+        let cb_sink = copy_job.cb_sink.clone();
+        let copied_inx = copy_job.inx;
+        cb_sink
+            .send(Box::new(move |siv| {
+                deselect_copied_item_callback(siv, copied_inx);
+            }))
+            .unwrap();
 
         if buffer == "stop" {
             break;
