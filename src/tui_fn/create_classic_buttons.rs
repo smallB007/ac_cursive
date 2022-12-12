@@ -24,7 +24,10 @@ use crate::{
     },
 };
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
-use cursive::{direction::Orientation, views::CircularFocus};
+use cursive::{
+    direction::Orientation,
+    views::{CircularFocus, ListView, ScrollView, TextContent},
+};
 use cursive::{theme::ColorStyle, Cursive};
 use cursive::{
     views::{
@@ -269,7 +272,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             //eprintln!("{:?}", selected_items);
             let dest_path = get_current_path_from_dialog_name(s, String::from(dest_panel));
             //eprintln!("dest_path: {}", dest_path);
-            let cpy_dlg = Dialog::around(
+            let mut cpy_dlg = Dialog::around(
                 LinearLayout::vertical()
                     .child(TextView::new("").with_name("copied_n_of_x"))
                     .child(
@@ -277,6 +280,15 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                             .child(TextView::new("Copied: ")) //++artie, just format!
                             .child(TextView::new("").with_name("cpy_percent"))
                             .child(TextView::new("%")),
+                    )
+                    .child(
+                        LinearLayout::vertical()
+                            .child(
+                                TextView::new("Errors detected:")
+                                    .max_height(0)
+                                    .with_name("error_list_label"), /*++artie, 0 == invisible ;) */
+                            )
+                            .child(ScrollView::new(ListView::new().with_name("error_list"))),
                     ),
             )
             .button("Cancel", |s| {})
@@ -284,6 +296,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             .button("Background", |s| {})
             .title("Copy")
             .with_name("cpy_dlg");
+            let cpy_dlg = cpy_dlg.max_height(15);
             s.add_layer(cpy_dlg);
             let cb_sink_clone = s.cb_sink().clone();
             let mut copying_jobs: Vec<copying_job> = Vec::new();
@@ -387,9 +400,13 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                 }
             }
             /*Copying in separate thread so GUI isn't blocked*/
+            let cb_sink = s.cb_sink().clone();
             std::thread::spawn(move || {
+                use crate::tui_fn::cp_utils::update_copy_dlg_with_error;
                 let (snd, rcv) = std::sync::mpsc::channel();
-                let srv_thread = std::thread::spawn(move || cp_server_main(snd));
+                let srv_thread = std::thread::spawn(move || {
+                    cp_server_main(snd, cb_sink, &update_copy_dlg_with_error)
+                });
                 let _ = rcv.recv();
                 if let Err(e) =
                     cp_client_main(copying_jobs, &update_copy_dlg, &deselect_copied_item)
@@ -399,7 +416,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
 
                 srv_thread.join();
                 match cb_sink_clone.send(Box::new(|s| {
-                    close_cpy_dlg(s);
+                    // close_cpy_dlg(s);
                 })) {
                     Ok(_) => {
                         eprintln!("Sending close_cpy_dlg successfull");

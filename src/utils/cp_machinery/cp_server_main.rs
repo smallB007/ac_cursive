@@ -1,11 +1,19 @@
 use anyhow::Context;
+use cursive::{CbSink, Cursive};
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream, NameTypeSupport};
 use std::{
     io::{self, prelude::*, BufReader},
     sync::mpsc::Sender,
 };
 
-pub fn cp_server_main(notify: Sender<()>) -> anyhow::Result<()> {
+pub fn cp_server_main<F_cb>(
+    notify: Sender<()>,
+    cb_sink: CbSink,
+    update_copy_dlg_with_error_cb: F_cb,
+) -> anyhow::Result<()>
+where
+    F_cb: FnOnce(&mut Cursive, String) + 'static + std::marker::Send + std::marker::Copy,
+{
     // Define a function that checks for errors in incoming connections. We'll use this to filter
     // through connections that fail on initialization for one reason or another.
     fn handle_error(conn: io::Result<LocalSocketStream>) -> Option<LocalSocketStream> {
@@ -84,17 +92,30 @@ another process and try again.",
         let src_target: Vec<&str> = buffer.split(':').collect();
 
         match cp_path(&src_target[0], &src_target[1]) {
-            Some(cp_err) => {
-                conn.get_mut()
-                    .write_all(format!("Copying finished with error: {}!\n", cp_err).as_bytes())
-                    .context("Socket send write_all err failed")?;
+            Cp_error::CP_EXIT_STATUS_ERROR(exit_status) => {
+                let failed_path = String::from(src_target[0].clone());
+                cb_sink.send(Box::new(move |s| {
+                    update_copy_dlg_with_error_cb(
+                        s,
+                        format!("Path:{}\nError:{}", failed_path, exit_status),
+                    );
+                }));
+                for i in 0..10 {
+                    cb_sink.send(Box::new(move |s| {
+                        update_copy_dlg_with_error_cb(
+                            s,
+                            format!("Path:{}\nError:{}", "failed_path", "exit_status"),
+                        );
+                    }));
+                }
             }
-            None => {
-                conn.get_mut()
-                    .write_all(format!("Copying finished: {}!\n", &src_target[0]).as_bytes())
-                    .context("Socket send write_all 2 failed")?;
+            _ => {
+                eprintln!("Copying successful")
             }
         }
+        conn.get_mut()
+            .write_all(format!("Copying finished: {}!\n", &src_target[0]).as_bytes())
+            .context("Socket send write_all 2 failed")?;
 
         // Clear the buffer so that the next iteration will display new data instead of messages
         // stacking on top of one another.
@@ -121,10 +142,14 @@ enum Cp_error {
     CP_COULDNOT_READ_STDERR,
     #[error("Could not read stdout")]
     CP_COULDNOT_READ_STDOUT,
+    #[error("")]
+    CP_EXIT_STATUS_ERROR(String),
+    #[error("")]
+    CP_EXIT_STATUS_SUCCESS,
 }
-fn cp_path(src: &str, target: &str) -> Option<Cp_error> {
+fn cp_path(src: &str, target: &str) -> Cp_error {
     //for i in 1..=3 {
-    //let source = format!("/home/artie/Desktop/Apprentice/{}.avi", i);
+    let src = "a";
     //let target = "/tmp";
     // Spawn the `wc` command
     let mut process = match Command::new("cp")
@@ -137,7 +162,7 @@ fn cp_path(src: &str, target: &str) -> Option<Cp_error> {
         .spawn()
     {
         Err(why) => {
-            return Some(Cp_error::CP_COULDNOT_START);
+            return Cp_error::CP_COULDNOT_START;
             //    panic!("couldn't spawn wc: {}", why)
         }
         Ok(process) => process,
@@ -163,22 +188,26 @@ fn cp_path(src: &str, target: &str) -> Option<Cp_error> {
         let mut s = String::new();
         match process.stderr.unwrap().read_to_string(&mut s) {
             Err(why) => {
-                return Some(Cp_error::CP_COULDNOT_READ_STDERR);
+                return Cp_error::CP_COULDNOT_READ_STDERR;
                 //    panic!("couldn't read wc stdout: {}", why)
             }
-            Ok(_) => print!("cp responded with:\n{}", s),
+            Ok(_) => {
+                if s.len() != 0 {
+                    return Cp_error::CP_EXIT_STATUS_ERROR(s);
+                }
+            }
         }
     }
-
+    Cp_error::CP_EXIT_STATUS_SUCCESS
     // The `stdout` field also has type `Option<ChildStdout>` so must be unwrapped.
-    let mut s = String::new();
-    match process.stdout.unwrap().read_to_string(&mut s) {
-        Err(why) => {
-            return Some(Cp_error::CP_COULDNOT_READ_STDOUT);
-            //    panic!("couldn't read wc stdout: {}", why)
-        }
-        Ok(_) => print!("cp responded with:\n{}", s),
-    }
-    None
+    //let mut s = String::new();
+    //match process.stdout.unwrap().read_to_string(&mut s) {
+    //    Err(why) => {
+    //        return Some(Cp_error::CP_COULDNOT_READ_STDOUT);
+    //        //    panic!("couldn't read wc stdout: {}", why)
+    //    }
+    //    Ok(_) => print!("cp responded with:\n{}", s),
+    //}
+    //None
     // }
 }
