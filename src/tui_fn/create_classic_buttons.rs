@@ -418,7 +418,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             /*Copying in separate thread so GUI isn't blocked*/
             let cb_sink = s.cb_sink().clone();
             std::thread::spawn(move || {
-                use crate::tui_fn::cp_utils::update_copy_dlg_with_error;
+                use crate::utils::cp_machinery::cp_utils::update_copy_dlg_with_error;
                 let (snd, rcv) = std::sync::mpsc::channel();
                 let srv_thread = std::thread::spawn(move || {
                     cp_server_main(snd, cb_sink, &update_copy_dlg_with_error, interrupt_rx)
