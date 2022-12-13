@@ -278,6 +278,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             //    crate::utils::cp_machinery::signal_handlers::await_interrupt(interrupt_tx)
             //});
             let interrupt_tx_clone_1 = interrupt_tx.clone();
+            let interrupt_tx_clone_2 = interrupt_tx.clone();
 
             let mut cpy_dlg = Dialog::around(
                 LinearLayout::vertical()
@@ -300,10 +301,13 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             )
             .button("Cancel", move |s| {
                 eprintln!("Cancelling copy ops");
-                interrupt_tx.send(nix::sys::signal::Signal::SIGSTOP);
+                interrupt_tx_clone_1.send(nix::sys::signal::Signal::SIGKILL);
             })
             .button("Pause", move |s| {
-                interrupt_tx_clone_1.send(nix::sys::signal::Signal::SIGCONT);
+                interrupt_tx.send(nix::sys::signal::Signal::SIGSTOP);
+            })
+            .button_hidden("Continue", move |s| {
+                interrupt_tx_clone_2.send(nix::sys::signal::Signal::SIGCONT);
             })
             .button("Background", |s| {})
             .title("Copy")

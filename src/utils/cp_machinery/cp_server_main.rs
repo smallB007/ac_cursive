@@ -98,7 +98,12 @@ another process and try again.",
         }
         let src_target: Vec<&str> = buffer.split(':').collect();
 
-        match cp_path(&src_target[0], &src_target[1], &interrupt_rx) {
+        match cp_path(
+            &src_target[0],
+            &src_target[1],
+            &interrupt_rx,
+            cb_sink.clone(),
+        ) {
             Cp_error::CP_EXIT_STATUS_ERROR(exit_status) => {
                 let failed_path = String::from(src_target[0].clone());
                 cb_sink.send(Box::new(move |s| {
@@ -172,6 +177,7 @@ fn cp_path(
     src: &str,
     target: &str,
     interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>,
+    cb_sink: CbSink,
 ) -> Cp_error {
     //for i in 1..=3 {
     //let src = "a";
@@ -223,9 +229,11 @@ fn cp_path(
                         {
                             Ok(nix::sys::signal::Signal::SIGSTOP)=>{
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGSTOP);
+                                cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils:: cpy_dlg_show_continue_btn(s)}));
                             },
                             Ok(nix::sys::signal::Signal::SIGCONT)=>{
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
+                                cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils:: cpy_dlg_show_pause_btn(s)}));
                             },
                             Ok(nix::sys::signal::Signal::SIGTERM)=>{
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
