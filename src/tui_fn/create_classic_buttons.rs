@@ -26,7 +26,7 @@ use crate::{
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
 use cursive::{
     direction::Orientation,
-    views::{CircularFocus, ListView, ScrollView, TextContent},
+    views::{CircularFocus, ListView, ProgressBar, ScrollView, TextContent},
 };
 use cursive::{theme::ColorStyle, Cursive};
 use cursive::{
@@ -198,6 +198,9 @@ fn update_copy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, perc
     s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
         text_view.set_content(format!("Copied {selected_item_n} of {total_items}",));
     });
+    s.call_on_name("cpy_progress", |progress_bar: &mut ProgressBar| {
+        progress_bar.set_value(percent as usize);
+    });
     match s.call_on_name("cpy_percent", |text_view: &mut TextView| {
         text_view.set_content(format!("{percent}"));
     }) {
@@ -289,6 +292,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                             .child(TextView::new("").with_name("cpy_percent"))
                             .child(TextView::new("%")),
                     )
+                    .child(ProgressBar::new().with_name("cpy_progress"))
                     .child(
                         LinearLayout::vertical()
                             .child(
