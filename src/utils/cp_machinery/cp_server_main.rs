@@ -6,10 +6,17 @@ use std::{
     sync::mpsc::Sender,
 };
 
+use crossbeam::channel::{
+    self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
+};
+use signal_hook::consts::*;
+use signal_hook::iterator::Signals;
+
 pub fn cp_server_main<F_cb>(
     notify: Sender<()>,
     cb_sink: CbSink,
     update_copy_dlg_with_error_cb: F_cb,
+    interrupt_rx: Crossbeam_Receiver<nix::sys::signal::Signal>,
 ) -> anyhow::Result<()>
 where
     F_cb: FnOnce(&mut Cursive, String) + 'static + std::marker::Send + std::marker::Copy,
@@ -91,7 +98,7 @@ another process and try again.",
         }
         let src_target: Vec<&str> = buffer.split(':').collect();
 
-        match cp_path(&src_target[0], &src_target[1]) {
+        match cp_path(&src_target[0], &src_target[1], &interrupt_rx) {
             Cp_error::CP_EXIT_STATUS_ERROR(exit_status) => {
                 let failed_path = String::from(src_target[0].clone());
                 cb_sink.send(Box::new(move |s| {
@@ -100,14 +107,14 @@ another process and try again.",
                         format!("Path:{}\nError:{}", failed_path, exit_status),
                     );
                 }));
-                for i in 0..10 {
-                    cb_sink.send(Box::new(move |s| {
-                        update_copy_dlg_with_error_cb(
-                            s,
-                            format!("Path:{}\nError:{}", "failed_path", "exit_status"),
-                        );
-                    }));
-                }
+                //for i in 0..10 {
+                //    cb_sink.send(Box::new(move |s| {
+                //        update_copy_dlg_with_error_cb(
+                //            s,
+                //            format!("Path:{}\nError:{}", "failed_path", "exit_status"),
+                //        );
+                //    }));
+                //}
             }
             _ => {
                 eprintln!("Copying successful")
@@ -147,9 +154,27 @@ enum Cp_error {
     #[error("")]
     CP_EXIT_STATUS_SUCCESS,
 }
-fn cp_path(src: &str, target: &str) -> Cp_error {
+
+//fn await_interrupt(interrupt_notification_channel: Crossbeam_Sender<()>) {
+//    let mut signals = Signals::new(&[
+//        // 1
+//        SIGINT,
+//    ])
+//    .unwrap();
+//
+//    for s in &mut signals {
+//        // 2
+//        interrupt_notification_channel.send(()); // 3
+//    }
+//}
+//use nix::sys::signal::kill;
+fn cp_path(
+    src: &str,
+    target: &str,
+    interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>,
+) -> Cp_error {
     //for i in 1..=3 {
-    let src = "a";
+    //let src = "a";
     //let target = "/tmp";
     // Spawn the `wc` command
     let mut process = match Command::new("cp")
@@ -183,7 +208,62 @@ fn cp_path(src: &str, target: &str) -> Cp_error {
     // This is very important, otherwise `wc` wouldn't start processing the
     // input we just sent.
 
-    process.wait();
+    //////////
+    //let (interrupt_tx, interrupt_rx) = channel::unbounded();
+    //std::thread::spawn(move || {
+    //    crate::utils::cp_machinery::signal_handlers::await_interrupt(interrupt_tx)
+    //});
+    let mut timeout = tick(std::time::Duration::from_secs(2));
+    loop {
+        select! {
+                    recv(interrupt_rx) -> interrupt_rx_result => {
+                        println!("Received interrupt notification");
+                        let id = process.id();
+                        match interrupt_rx_result
+                        {
+                            Ok(nix::sys::signal::Signal::SIGSTOP)=>{
+                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGSTOP);
+                            },
+                            Ok(nix::sys::signal::Signal::SIGCONT)=>{
+                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
+                            },
+                            Ok(nix::sys::signal::Signal::SIGTERM)=>{
+                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
+                                break;
+                            },
+                            _=>{}
+                        }
+                        //match nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGSTOP)
+        //
+                        //{
+                        //    Ok(_)=>{
+                        //        eprintln!("Successfully killed cp");
+                        //        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
+                        //    },
+                        //    Err(e)=>{eprintln!("Could not kill cp: {}",e)},
+                        //}
+                        //break;
+                    },
+                    recv(timeout) -> _ => {                                // 5
+                        //println!("Finally finished the long task");
+                        println!("Checking if we finished the long task");
+                        match process.try_wait() {
+                            Ok(Some(status)) =>{ eprintln!("exited with: {status}");break;},
+                            Ok(None) => {
+                                eprintln!("status not ready yet, let's really wait");
+                                //timeout = after(std::time::Duration::from_secs(2));
+                                //let res = child.wait();
+                                //println!("result: {res:?}");
+                            }
+                            Err(e) => {eprintln!("error attempting to wait: {e}");break;},
+                        }
+                    }
+                }
+        eprintln!("AFTER SELECT>>>>>>>>>>>>>>>>>>>>>>");
+    }
+    eprintln!("AFTER LOOP>>>>>>>>>>>>>>>>>>>>>>");
+    /////////
+
     {
         let mut s = String::new();
         match process.stderr.unwrap().read_to_string(&mut s) {

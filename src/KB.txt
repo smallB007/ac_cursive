@@ -14,3 +14,6 @@ cargo build
 
 You can also add this to the top of the file you wish to disable warnings in:
 #![allow(warnings)]
+
+//How to handle signals
+https://www.jameselford.com/blog/working-with-signals-in-rust-pt1-whats-a-signal/

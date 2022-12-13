@@ -226,6 +226,7 @@ pub struct copying_job {
     pub cb_sink: CbSink,
     pub inx: usize,
 }
+
 pub fn create_classic_buttons() -> ResizedView<StackView> {
     let help_tuple = (
         TextView::new("F1").style(ColorStyle::title_primary()),
@@ -272,6 +273,12 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             //eprintln!("{:?}", selected_items);
             let dest_path = get_current_path_from_dialog_name(s, String::from(dest_panel));
             //eprintln!("dest_path: {}", dest_path);
+            let (interrupt_tx, interrupt_rx) = crossbeam::channel::unbounded();
+            //std::thread::spawn(move || {
+            //    crate::utils::cp_machinery::signal_handlers::await_interrupt(interrupt_tx)
+            //});
+            let interrupt_tx_clone_1 = interrupt_tx.clone();
+
             let mut cpy_dlg = Dialog::around(
                 LinearLayout::vertical()
                     .child(TextView::new("").with_name("copied_n_of_x"))
@@ -291,8 +298,13 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                             .child(ScrollView::new(ListView::new().with_name("error_list"))),
                     ),
             )
-            .button("Cancel", |s| {})
-            .button("Pause", |s| {})
+            .button("Cancel", move |s| {
+                eprintln!("Cancelling copy ops");
+                interrupt_tx.send(nix::sys::signal::Signal::SIGSTOP);
+            })
+            .button("Pause", move |s| {
+                interrupt_tx_clone_1.send(nix::sys::signal::Signal::SIGCONT);
+            })
             .button("Background", |s| {})
             .title("Copy")
             .with_name("cpy_dlg");
@@ -405,7 +417,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                 use crate::tui_fn::cp_utils::update_copy_dlg_with_error;
                 let (snd, rcv) = std::sync::mpsc::channel();
                 let srv_thread = std::thread::spawn(move || {
-                    cp_server_main(snd, cb_sink, &update_copy_dlg_with_error)
+                    cp_server_main(snd, cb_sink, &update_copy_dlg_with_error, interrupt_rx)
                 });
                 let _ = rcv.recv();
                 if let Err(e) =
@@ -416,7 +428,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
 
                 srv_thread.join();
                 match cb_sink_clone.send(Box::new(|s| {
-                    // close_cpy_dlg(s);
+                    close_cpy_dlg(s);
                 })) {
                     Ok(_) => {
                         eprintln!("Sending close_cpy_dlg successfull");
