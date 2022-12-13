@@ -254,7 +254,7 @@ fn cp_path(
                     },
                     recv(timeout) -> _ => {                                // 5
                         //println!("Finally finished the long task");
-                        println!("Checking if we finished the long task");
+                        eprintln!("Checking if we finished the long task");
                         match process.try_wait() {
                             Ok(Some(status)) =>{ eprintln!("exited with: {status}");break;},
                             Ok(None) => {
