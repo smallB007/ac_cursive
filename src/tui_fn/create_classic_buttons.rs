@@ -301,7 +301,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             )
             .button("Cancel", move |s| {
                 eprintln!("Cancelling copy ops");
-                interrupt_tx_clone_1.send(nix::sys::signal::Signal::SIGKILL);
+                interrupt_tx_clone_1.send(nix::sys::signal::Signal::SIGTERM);
             })
             .button("Pause", move |s| {
                 interrupt_tx.send(nix::sys::signal::Signal::SIGSTOP);
