@@ -1,5 +1,5 @@
 use cursive::{
-    views::{Dialog, ListView, ResizedView, TextContent, TextView},
+    views::{Dialog, LayerPosition, ListView, ResizedView, TextContent, TextView},
     Cursive,
 };
 
@@ -27,4 +27,34 @@ pub fn cpy_dlg_show_pause_btn(s: &mut Cursive) {
     s.call_on_name("cpy_dlg", move |dlg: &mut Dialog| {
         dlg.show_button("<Pause>", "<Continue>");
     });
+}
+pub fn show_cpy_dlg(s: &mut Cursive) -> bool {
+    match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
+        /*If call on name succeeds it means that dlg with that name exists */
+        Some(v) => {
+            if v == true {
+                s.screen_mut().move_layer(
+                    cursive::views::LayerPosition::FromBack(0),
+                    cursive::views::LayerPosition::FromFront(0),
+                );
+            }
+
+            v
+        }
+        None => false,
+    }
+}
+
+pub fn hide_cpy_dlg(s: &mut Cursive) -> bool {
+    match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
+        /*If call on name succeeds it means that dlg with that name exists */
+        Some(v) => {
+            if v == true {
+                s.screen_mut().move_to_back(LayerPosition::FromFront(0));
+            }
+
+            v
+        }
+        None => false,
+    }
 }

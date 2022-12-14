@@ -1,9 +1,12 @@
-use crate::cursive::view::{Nameable, Resizable};
+use crate::{
+    cursive::view::{Nameable, Resizable},
+    utils::cp_machinery::cp_utils::hide_cpy_dlg,
+};
 use crossbeam::channel::{
     self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
 };
 use cursive::views::{
-    Dialog, LinearLayout, ListView, NamedView, ProgressBar, ScrollView, TextView,
+    Dialog, LayerPosition, LinearLayout, ListView, NamedView, ProgressBar, ScrollView, TextView,
 };
 pub fn create_cp_dlg(
     s: &mut cursive::Cursive,
@@ -42,7 +45,7 @@ pub fn create_cp_dlg(
         interrupt_tx_clone_2.send(nix::sys::signal::Signal::SIGCONT);
     })
     .button("Background", |s| {
-        s.pop_layer();
+        hide_cpy_dlg(s);
     })
     .title("Copy")
     .with_name("cpy_dlg");

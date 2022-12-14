@@ -22,6 +22,7 @@ use crate::{
         },
         cp_machinery::cp_client_main::cp_client_main,
         cp_machinery::cp_server_main::cp_server_main,
+        cp_machinery::cp_utils::show_cpy_dlg,
     },
 };
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
@@ -213,7 +214,7 @@ fn update_copy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, perc
         }
     }
 }
-fn close_cpy_dlg(s: &mut Cursive) {
+pub fn close_cpy_dlg(s: &mut Cursive) {
     match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
         /*If call on name succeeds it means that dlg with that name exists */
         Some(v) => {
@@ -224,6 +225,7 @@ fn close_cpy_dlg(s: &mut Cursive) {
         None => {}
     }
 }
+
 pub struct copying_job {
     pub source: String,
     pub target: String,
@@ -260,6 +262,9 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
     let copy_layout = LinearLayout::horizontal()
         .child(TextView::new("F5").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Copy ]", |s| {
+            if show_cpy_dlg(s) {
+                return;
+            }
             let ((src_table, _), (_, dest_panel)) =
                 if get_active_table_name(s) == LEFT_TABLE_VIEW_NAME {
                     (
