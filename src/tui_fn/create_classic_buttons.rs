@@ -21,8 +21,8 @@ use crate::{
             select_index,
         },
         cp_machinery::cp_client_main::cp_client_main,
-        cp_machinery::cp_server_main::cp_server_main,
-        cp_machinery::cp_utils::show_cpy_dlg,
+        cp_machinery::cp_utils::{close_cpy_dlg, show_cpy_dlg},
+        cp_machinery::{cp_server_main::cp_server_main, cp_utils::update_copy_dlg},
     },
 };
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
@@ -196,36 +196,6 @@ fn deselect_copied_item(s: &mut Cursive, copied_item_inx: usize) {
     );
 }
 
-fn update_copy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, percent: u64) {
-    s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
-        text_view.set_content(format!("Copied {selected_item_n} of {total_items}",));
-    });
-    s.call_on_name("cpy_progress", |progress_bar: &mut ProgressBar| {
-        progress_bar.set_value(percent as usize);
-    });
-    match s.call_on_name("cpy_percent", |text_view: &mut TextView| {
-        text_view.set_content(format!("{percent}"));
-    }) {
-        Some(_) => {
-            eprintln!("update_copy_dlg success: {}", percent)
-        }
-        None => {
-            eprintln!("update_copy_dlg NOT success: {}", percent)
-        }
-    }
-}
-pub fn close_cpy_dlg(s: &mut Cursive) {
-    match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
-        /*If call on name succeeds it means that dlg with that name exists */
-        Some(v) => {
-            if v == true {
-                s.pop_layer();
-            }
-        }
-        None => {}
-    }
-}
-
 pub struct copying_job {
     pub source: String,
     pub target: String,
@@ -259,6 +229,12 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         .child(Button::new_raw("[ Peek ]", |s| {
             prepare_peek_view(s);
         }));
+    let copy_progress_layout = LinearLayout::horizontal()
+        .child(TextView::new("F5").style(ColorStyle::title_primary()))
+        .child(TextView::new("[ "))
+        .child(ProgressBar::new().with_name("cpy_progress")) //++artie, careful with names, name of progress bar on cpy_dlg may clash
+        .child(TextView::new(" ]"));
+    //let copy_progress_layout = copy_progress_layout.fixed_height(0);
     let copy_layout = LinearLayout::horizontal()
         .child(TextView::new("F5").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Copy ]", |s| {
@@ -480,6 +456,19 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         .child(TextView::new("F10").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Quit ]", |s| s.quit()));
 
+    let mut copy_stack_view = StackView::new()
+        .with_name("copy_stack_view")
+        .fixed_height(1);
+
+    copy_stack_view
+        .get_inner_mut()
+        .get_mut()
+        .add_fullscreen_layer(copy_progress_layout);
+    copy_stack_view
+        .get_inner_mut()
+        .get_mut()
+        .add_fullscreen_layer(copy_layout);
+
     let classic_buttons = LinearLayout::horizontal()
         .child(help_layout)
         .child(DummyView.full_width())
@@ -489,7 +478,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         .child(DummyView.full_width())
         .child(edit_layout)
         .child(DummyView.full_width())
-        .child(copy_layout)
+        .child(copy_stack_view)
         .child(DummyView.full_width())
         .child(rn_mv_layout)
         .child(DummyView.full_width())
