@@ -33,6 +33,9 @@ use tui_fn::{
 };
 fn main() {
     let mut siv = cursive::default();
+    siv.add_global_callback(cursive::event::Event::Key(Key::F5), |s| {
+        f5_handler(s);
+    });
     create_menubar(&mut siv);
     let classic_layout = create_classic_layout("/home/artie/Desktop/Apprentice", "/tmp");
     siv.add_fullscreen_layer(classic_layout);
@@ -43,6 +46,7 @@ fn main() {
 use cursive::event::{Event, Key};
 use cursive::traits::*;
 use cursive::views::{EditView, OnEventView, TextArea};
+use utils::cp_machinery::cp_utils::f5_handler;
 
 fn dmain() {
     let mut siv = cursive::default();

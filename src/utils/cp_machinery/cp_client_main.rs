@@ -1,4 +1,3 @@
-use crate::tui_fn::create_classic_buttons::copying_job;
 use anyhow::Context;
 use cursive::{CbSink, Cursive};
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream, NameTypeSupport};
@@ -8,6 +7,8 @@ use std::{
     path::PathBuf,
     sync::{mpsc::Sender, Arc, Condvar, Mutex},
 };
+
+use super::cp_utils::copying_job;
 pub fn cp_client_main<F, F2>(
     copy_jobs: Vec<copying_job>,
     update_cpy_dlg_callback: F,
