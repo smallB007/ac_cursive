@@ -13,6 +13,7 @@ use std::{
 use crate::{
     cursive::view::Nameable,
     definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME},
+    tui_fn::create_cp_dlg::create_cp_dlg,
     utils::{
         common_utils::{
             copy_file, get_active_table_first_selected_index, get_active_table_first_selected_item,
@@ -282,42 +283,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
             //});
             let interrupt_tx_clone_1 = interrupt_tx.clone();
             let interrupt_tx_clone_2 = interrupt_tx.clone();
-
-            let mut cpy_dlg = Dialog::around(
-                LinearLayout::vertical()
-                    .child(TextView::new("").with_name("copied_n_of_x"))
-                    .child(
-                        LinearLayout::horizontal()
-                            .child(TextView::new("Copied: ")) //++artie, just format!
-                            .child(TextView::new("").with_name("cpy_percent"))
-                            .child(TextView::new("%")),
-                    )
-                    .child(ProgressBar::new().with_name("cpy_progress"))
-                    .child(
-                        LinearLayout::vertical()
-                            .child(
-                                TextView::new("Errors detected:")
-                                    .max_height(0)
-                                    .with_name("error_list_label"), /*++artie, 0 == invisible ;) */
-                            )
-                            .child(ScrollView::new(ListView::new().with_name("error_list"))),
-                    ),
-            )
-            .button("Cancel", move |s| {
-                eprintln!("Cancelling copy ops");
-                interrupt_tx_clone_1.send(nix::sys::signal::Signal::SIGTERM);
-            })
-            .button("Pause", move |s| {
-                interrupt_tx.send(nix::sys::signal::Signal::SIGSTOP);
-            })
-            .button_hidden("Continue", move |s| {
-                interrupt_tx_clone_2.send(nix::sys::signal::Signal::SIGCONT);
-            })
-            .button("Background", |s| {})
-            .title("Copy")
-            .with_name("cpy_dlg");
-            let cpy_dlg = cpy_dlg.max_height(15);
-            s.add_layer(cpy_dlg);
+            create_cp_dlg(s, interrupt_tx, interrupt_tx_clone_1, interrupt_tx_clone_2);
             let cb_sink_clone = s.cb_sink().clone();
             let mut copying_jobs: Vec<copying_job> = Vec::new();
             for (inx, selected_item) in selected_items {
