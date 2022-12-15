@@ -236,6 +236,7 @@ fn cp_path(
                                 cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils:: cpy_dlg_show_pause_btn(s)}));
                             },
                             Ok(nix::sys::signal::Signal::SIGTERM)=>{
+                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
                                 break;
                             },
