@@ -85,7 +85,7 @@ pub fn create_menubar(siv: &mut Cursive) {
 
     siv.add_global_callback(Key::Esc, |s| s.select_menubar());
 
-    siv.add_layer(Dialog::text("Hit <Esc> to show the menu!"));
+    //siv.add_layer(Dialog::text("Hit <Esc> to show the menu!"));
 
     //siv.run();
 }
