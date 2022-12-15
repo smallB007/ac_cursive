@@ -82,6 +82,20 @@ pub fn cpy_dlg_show_pause_btn(s: &mut Cursive) {
     });
 }
 pub fn show_cpy_dlg(s: &mut Cursive) -> bool {
+    s.call_on_name(
+        //++artie rfctr
+        "copy_stack_view",
+        |copy_stack_view: &mut StackView| match copy_stack_view
+            .find_layer_from_name("copy_progress_layout")
+        {
+            Some(inx) => {
+                if inx == LayerPosition::FromFront(1) {
+                    copy_stack_view.move_to_back(LayerPosition::FromFront(0));
+                }
+            }
+            None => {}
+        },
+    );
     match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
         /*If call on name succeeds it means that dlg with that name exists */
         Some(v) => {
@@ -99,9 +113,20 @@ pub fn show_cpy_dlg(s: &mut Cursive) -> bool {
 }
 
 pub fn hide_cpy_dlg(s: &mut Cursive) -> bool {
-    s.call_on_name("copy_stack_view", |copy_stack_view: &mut StackView| {
-        copy_stack_view.move_to_back(LayerPosition::FromFront(0));
-    });
+    s.call_on_name(
+        //++artie rfctr
+        "copy_stack_view",
+        |copy_stack_view: &mut StackView| match copy_stack_view
+            .find_layer_from_name_like_human_being("copy_progress_layout")
+        {
+            Some(inx) => {
+                if inx == 0 {
+                    copy_stack_view.move_to_front(LayerPosition::FromBack(0));
+                }
+            }
+            None => {}
+        },
+    );
     match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
         /*If call on name succeeds it means that dlg with that name exists */
         Some(v) => {
@@ -119,8 +144,15 @@ pub fn close_cpy_dlg(s: &mut Cursive) {
     s.call_on_name(
         //++artie rfctr
         "copy_stack_view",
-        |copy_stack_view: &mut StackView| {
-            copy_stack_view.move_to_front(LayerPosition::FromBack(0));
+        |copy_stack_view: &mut StackView| match copy_stack_view
+            .find_layer_from_name_like_human_being("copy_progress_layout")
+        {
+            Some(inx) => {
+                if inx == 1 {
+                    copy_stack_view.move_to_back(LayerPosition::FromFront(0));
+                }
+            }
+            None => {}
         },
     );
     match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {

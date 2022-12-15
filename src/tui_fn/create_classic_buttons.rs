@@ -224,12 +224,15 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
                 .fixed_width(4 /*length of Copy */),
         ) //++artie, careful with names, name of progress bar on cpy_dlg may clash
         .child(TextView::new(" ]"));
+    let copy_progress_layout = copy_progress_layout.with_name("copy_progress_layout");
     //let copy_progress_layout = copy_progress_layout.fixed_height(0);
     let copy_layout = LinearLayout::horizontal()
         .child(TextView::new("F5").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Copy ]", |s| {
             f5_handler(s);
         }));
+    let copy_layout = copy_layout.with_name("copy_layout");
+
     let rn_mv_layout = LinearLayout::horizontal()
         .child(TextView::new("F6").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Rnm/Mv ]", |s| {}));
