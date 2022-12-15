@@ -112,7 +112,7 @@ pub fn show_cpy_dlg(s: &mut Cursive) -> bool {
     }
 }
 
-pub fn hide_cpy_dlg(s: &mut Cursive) -> bool {
+pub fn hide_cpy_dlg(s: &mut Cursive) {
     s.call_on_name(
         //++artie rfctr
         "copy_stack_view",
@@ -127,16 +127,22 @@ pub fn hide_cpy_dlg(s: &mut Cursive) -> bool {
             None => {}
         },
     );
-    match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
+    match s.call_on_name("cpy_dlg", |_: &mut Dialog| ()) {
         /*If call on name succeeds it means that dlg with that name exists */
-        Some(v) => {
-            if v == true {
-                s.screen_mut().move_to_back(LayerPosition::FromFront(0));
+        Some(()) => {
+            match s
+                .screen_mut()
+                .find_layer_from_name_like_human_being("cpy_dlg")
+            {
+                Some(inx) => {
+                    s.screen_mut().move_to_back(LayerPosition::FromBack(inx));
+                }
+                None => {
+                    eprintln!("Layer not found")
+                }
             }
-
-            v
         }
-        None => false,
+        None => {}
     }
 }
 
@@ -155,11 +161,19 @@ pub fn close_cpy_dlg(s: &mut Cursive) {
             None => {}
         },
     );
-    match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
+    match s.call_on_name("cpy_dlg", |_: &mut Dialog| ()) {
         /*If call on name succeeds it means that dlg with that name exists */
-        Some(v) => {
-            if v == true {
-                s.pop_layer();
+        Some(()) => {
+            match s
+                .screen_mut()
+                .find_layer_from_name_like_human_being("cpy_dlg")
+            {
+                Some(inx) => {
+                    s.screen_mut().remove_layer(LayerPosition::FromBack(inx));
+                }
+                None => {
+                    eprintln!("Layer not found")
+                }
             }
         }
         None => {}

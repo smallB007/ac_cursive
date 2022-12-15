@@ -50,5 +50,6 @@ pub fn create_cp_dlg(
     .title("Copy")
     .with_name("cpy_dlg");
     let cpy_dlg = cpy_dlg.max_height(15);
+
     s.add_layer(cpy_dlg);
 }
