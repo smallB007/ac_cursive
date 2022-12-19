@@ -223,7 +223,7 @@ fn cp_path(
     loop {
         select! {
                     recv(interrupt_rx) -> interrupt_rx_result => {
-                        println!("Received interrupt notification");
+                        println!("Received interrupt notification:{:?}",interrupt_rx_result);
                         let id = process.id();
                         match interrupt_rx_result
                         {

@@ -33,11 +33,11 @@ use tui_fn::{
 };
 fn main() {
     let mut siv = cursive::default();
-    siv.add_global_callback(cursive::event::Event::Key(Key::F5), |s| {
+    siv.add_global_callback(cursive::event::Event::Key(Key::F2), |s| {
         f5_handler(s);
     });
     create_menubar(&mut siv);
-    let classic_layout = create_classic_layout("/home/artie/Desktop/Apprentice", "/tmp");
+    let classic_layout = create_classic_layout("/home/artie/Desktop/Coumbo", "/tmp");
     siv.add_fullscreen_layer(classic_layout);
 
     siv.run();

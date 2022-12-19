@@ -51,16 +51,20 @@ pub fn get_active_table_first_selected_item(s: &mut Cursive, active_table_name: 
 pub fn get_active_table_selected_items(
     s: &mut Cursive,
     active_table_name: &str,
+    deselect_after_gather: bool,
 ) -> Vec<(usize, String)> {
     let mut res = Vec::new();
     //++artie refactor, return ref to direntry
     s.call_on_name(
         active_table_name,
         |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
-            let table = table.get_mut();
+            let mut table = table.get_mut();
             let selected_items = table.get_selected_items_with_indexes();
             for (inx, selected_item) in selected_items {
                 res.push((*inx, pathbuf_to_lossy_string(&selected_item.name)));
+            }
+            if deselect_after_gather == true {
+                table.deselect_all_items();
             }
         },
     )

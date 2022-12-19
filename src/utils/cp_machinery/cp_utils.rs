@@ -12,6 +12,7 @@ use crossbeam::channel::{
     self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
 };
 use cursive_table_view::TableView;
+use futures::SinkExt;
 
 use crate::{
     definitions::definitions::*,
@@ -24,7 +25,7 @@ use crate::{
         cp_machinery::{cp_client_main::cp_client_main, cp_server_main::cp_server_main},
     },
 };
-
+#[derive(Clone)]
 pub struct copying_job {
     pub source: String,
     pub target: String,
@@ -81,7 +82,7 @@ pub fn cpy_dlg_show_pause_btn(s: &mut Cursive) {
         dlg.show_button("<Pause>", "<Continue>");
     });
 }
-pub fn show_cpy_dlg(s: &mut Cursive) -> bool {
+pub fn show_cpy_dlg(s: &mut Cursive) {
     s.call_on_name(
         //++artie rfctr
         "copy_stack_view",
@@ -96,19 +97,22 @@ pub fn show_cpy_dlg(s: &mut Cursive) -> bool {
             None => {}
         },
     );
-    match s.call_on_name("cpy_dlg", |_: &mut Dialog| true) {
+    match s.call_on_name("cpy_dlg", |_: &mut Dialog| ()) {
         /*If call on name succeeds it means that dlg with that name exists */
-        Some(v) => {
-            if v == true {
-                s.screen_mut().move_layer(
-                    cursive::views::LayerPosition::FromBack(0),
-                    cursive::views::LayerPosition::FromFront(0),
-                );
+        Some(()) => {
+            match s
+                .screen_mut()
+                .find_layer_from_name_like_human_being("cpy_dlg")
+            {
+                Some(inx) => {
+                    s.screen_mut().move_to_front(LayerPosition::FromBack(inx));
+                }
+                None => {
+                    eprintln!("Layer not found")
+                }
             }
-
-            v
         }
-        None => false,
+        None => {}
     }
 }
 
@@ -179,11 +183,15 @@ pub fn close_cpy_dlg(s: &mut Cursive) {
         None => {}
     }
 }
-
+fn transfer_copying_jobs(
+    copying_jobs: Vec<copying_job>,
+    jobs_sender_tx: std::sync::mpsc::Sender<Vec<copying_job>>,
+    rx_client_thread_started: std::sync::mpsc::Receiver<()>,
+) {
+    rx_client_thread_started.recv();
+    jobs_sender_tx.send(copying_jobs);
+}
 pub fn f5_handler(s: &mut Cursive) {
-    if show_cpy_dlg(s) {
-        return;
-    }
     let ((src_table, _), (_, dest_panel)) = if get_active_table_name(s) == LEFT_TABLE_VIEW_NAME {
         (
             //++artie only one item neede to return
@@ -196,18 +204,10 @@ pub fn f5_handler(s: &mut Cursive) {
             (LEFT_TABLE_VIEW_NAME, LEFT_PANEL_NAME),
         )
     };
-    let selected_items = get_active_table_selected_items(s, src_table);
+    let selected_items = get_active_table_selected_items(s, src_table, true);
     //eprintln!("{:?}", selected_items);
     let dest_path = get_current_path_from_dialog_name(s, String::from(dest_panel));
-    //eprintln!("dest_path: {}", dest_path);
-    let (interrupt_tx, interrupt_rx) = crossbeam::channel::unbounded();
-    //std::thread::spawn(move || {
-    //    crate::utils::cp_machinery::signal_handlers::await_interrupt(interrupt_tx)
-    //});
-    let interrupt_tx_clone_1 = interrupt_tx.clone();
-    let interrupt_tx_clone_2 = interrupt_tx.clone();
-    create_cp_dlg(s, interrupt_tx, interrupt_tx_clone_1, interrupt_tx_clone_2);
-    let cb_sink_clone = s.cb_sink().clone();
+
     let mut copying_jobs: Vec<copying_job> = Vec::new();
     for (inx, selected_item) in selected_items {
         match PathBuf::from(&selected_item).file_name() {
@@ -215,10 +215,6 @@ pub fn f5_handler(s: &mut Cursive) {
                 //std::thread::scope(|scoped| {
                 let full_dest_path =
                     format!("{}/{}", &dest_path, os_string_to_lossy_string(&file_name));
-                //eprintln!("full_dest_path: {full_dest_path}");
-                //let dest_path_clone = dest_path.clone();
-                //let full_dest_path_clone = full_dest_path.clone();
-                //let (tx, rx) = std::sync::mpsc::sync_channel(1);
 
                 let cb_sink = s.cb_sink().clone();
                 copying_jobs.push(copying_job {
@@ -226,113 +222,77 @@ pub fn f5_handler(s: &mut Cursive) {
                     target: full_dest_path.clone(),
                     cb_sink,
                     inx,
-                    // selected_items.len(),
                 });
-                //copying_engine(&selected_item, &full_dest_path, cb_sink);
-
-                /*
-                let arc_cond_var = Arc::new((Mutex::new(false), Condvar::new()));
-                let arc_cond_var_clone = arc_cond_var.clone();
-
-                let _handle_copy = std::thread::spawn(move || {
-                    let (lock, cvar) = &*arc_cond_var;
-                    let mut started = lock.lock().unwrap();
-                    *started = true;
-                    // We notify the condvar that the value has changed.
-                    cvar.notify_all();
-                    match copy_file(&selected_item, &full_dest_path) {
-                        Ok(_) => {
-                            eprintln!("Copied");
-                            tx.send(true);
-                            return;
-                        }
-                        Err(e) => {
-                            eprintln!("couldn't copy: {e}");
-                            tx.send(true);
-                            return;
-                        }
-                    }
-                });
-                /*First, lets wait for the readying thread to start */
-                let (lock, cond_var) = &*arc_cond_var_clone;
-                let mut started = lock.lock().unwrap();
-                while !*started {
-                    started = cond_var.wait(started).unwrap();
-                }
-                let _handle_read = std::thread::spawn(move || {
-                    loop {
-                        match rx.try_recv() {
-                            Ok(res) => {
-                                if res {
-                                    eprintln!("Received end of copying msg");
-                                    break;
-                                }
-                            }
-                            Err(e) => {
-                                eprintln!("Receiving error: {}", e);
-                                // break;
-                            }
-                        }
-                        let full_dest_path_clone_2 = full_dest_path_clone.clone();
-                        match std::fs::File::open(full_dest_path_clone_2) {
-                            Ok(f) => {
-                                let len = f.metadata().unwrap().len();
-                                //eprintln!("opened, len: {len}");
-                            }
-                            Err(e) => {
-                                eprintln!("couldn't open: {e}");
-                            }
-                        }
-
-                        std::thread::sleep(std::time::Duration::from_secs(2));
-                    }
-                });
-                */
-                //handle_copy.join();
-                //handle_read.join();
-                //std::thread::spawn(move || watch(&dest_path_clone));
-                //std::thread::spawn(move || {
-                //    match copy_file(&selected_item, &full_dest_path) {
-                //        Ok(_) => {
-                //            eprintln!("Copied")
-                //        }
-                //        Err(e) => {
-                //            eprintln!("Couldn't cpy: {e}")
-                //        }
-                //    }
-                //});
-                //scoped });
             }
             None => {
                 eprintln!("Couldn't copy {selected_item}");
             }
         }
     }
-    /*Copying in separate thread so GUI isn't blocked*/
-    let cb_sink = s.cb_sink().clone();
-    std::thread::spawn(move || {
-        use crate::utils::cp_machinery::cp_utils::update_copy_dlg_with_error;
-        let (snd, rcv) = std::sync::mpsc::channel();
-        let srv_thread = std::thread::spawn(move || {
-            cp_server_main(snd, cb_sink, &update_copy_dlg_with_error, interrupt_rx)
+    show_cpy_dlg(s);
+    if s.user_data::<std::sync::mpsc::Sender<Vec<copying_job>>>()
+        .is_some()
+    {
+        let sender: &mut std::sync::mpsc::Sender<Vec<copying_job>> = s.user_data().unwrap();
+        sender.send(copying_jobs);
+    } else {
+        let (jobs_sender_tx, jobs_receiver_rx) = std::sync::mpsc::channel();
+        let (client_thread_started_tx, client_thread_started_rx) = std::sync::mpsc::channel();
+        let copying_jobs_clone = copying_jobs.clone();
+        let jobs_sender_clone = jobs_sender_tx.clone();
+        let transfer_copying_jobs_handle = std::thread::spawn(move || {
+            transfer_copying_jobs(copying_jobs_clone, jobs_sender_tx, client_thread_started_rx);
         });
-        let _ = rcv.recv();
-        if let Err(e) = cp_client_main(copying_jobs, &update_copy_dlg, &deselect_copied_item) {
-            eprintln!("Error during copying:{}", e);
-        }
+        s.set_user_data(jobs_sender_clone);
 
-        srv_thread.join();
-        match cb_sink_clone.send(Box::new(|s| {
-            close_cpy_dlg(s);
-        })) {
-            Ok(_) => {
-                eprintln!("Sending close_cpy_dlg successfull");
+        //    if show_cpy_dlg(s) {
+        //        return;
+        //    }
+        //eprintln!("dest_path: {}", dest_path);
+        let (interrupt_tx, interrupt_rx) = crossbeam::channel::unbounded();
+        //std::thread::spawn(move || {
+        //    crate::utils::cp_machinery::signal_handlers::await_interrupt(interrupt_tx)
+        //});
+        let interrupt_tx_clone_1 = interrupt_tx.clone();
+        let interrupt_tx_clone_2 = interrupt_tx.clone();
+        create_cp_dlg(s, interrupt_tx, interrupt_tx_clone_1, interrupt_tx_clone_2);
+        let cb_sink_clone = s.cb_sink().clone();
+
+        /*Copying in separate thread so GUI isn't blocked*/
+        let cb_sink = s.cb_sink().clone();
+        let cb_sink_for_client_thread = s.cb_sink().clone();
+        std::thread::spawn(move || {
+            use crate::utils::cp_machinery::cp_utils::update_copy_dlg_with_error;
+            let (snd, rcv) = std::sync::mpsc::channel();
+            let srv_thread = std::thread::spawn(move || {
+                cp_server_main(snd, cb_sink, &update_copy_dlg_with_error, interrupt_rx)
+            });
+            let _ = rcv.recv();
+            if let Err(e) = cp_client_main(
+                copying_jobs,
+                &update_copy_dlg,
+                show_cpy_dlg as fn(&mut Cursive),
+                hide_cpy_dlg as fn(&mut Cursive),
+                jobs_receiver_rx,
+                client_thread_started_tx,
+                cb_sink_for_client_thread,
+            ) {
+                eprintln!("Error during copying:{}", e);
             }
-            Err(e) => {
-                eprintln!("Sending close_cpy_dlg NOT successfull: {}", e);
+
+            srv_thread.join();
+            match cb_sink_clone.send(Box::new(|s| {
+                close_cpy_dlg(s);
+            })) {
+                Ok(_) => {
+                    eprintln!("Sending close_cpy_dlg successfull");
+                }
+                Err(e) => {
+                    eprintln!("Sending close_cpy_dlg NOT successfull: {}", e);
+                }
             }
-        }
-    });
+        });
+    }
     /* std::thread::spawn(move || {
         let copying_jobs_len = copying_jobs.len();
         for (inx, copying_job) in copying_jobs.iter().enumerate() {
@@ -366,3 +326,78 @@ pub fn f5_handler(s: &mut Cursive) {
     });
     */
 }
+
+//copying_engine(&selected_item, &full_dest_path, cb_sink);
+
+/*
+let arc_cond_var = Arc::new((Mutex::new(false), Condvar::new()));
+let arc_cond_var_clone = arc_cond_var.clone();
+
+let _handle_copy = std::thread::spawn(move || {
+    let (lock, cvar) = &*arc_cond_var;
+    let mut started = lock.lock().unwrap();
+    *started = true;
+    // We notify the condvar that the value has changed.
+    cvar.notify_all();
+    match copy_file(&selected_item, &full_dest_path) {
+        Ok(_) => {
+            eprintln!("Copied");
+            tx.send(true);
+            return;
+        }
+        Err(e) => {
+            eprintln!("couldn't copy: {e}");
+            tx.send(true);
+            return;
+        }
+    }
+});
+/*First, lets wait for the readying thread to start */
+let (lock, cond_var) = &*arc_cond_var_clone;
+let mut started = lock.lock().unwrap();
+while !*started {
+    started = cond_var.wait(started).unwrap();
+}
+let _handle_read = std::thread::spawn(move || {
+    loop {
+        match rx.try_recv() {
+            Ok(res) => {
+                if res {
+                    eprintln!("Received end of copying msg");
+                    break;
+                }
+            }
+            Err(e) => {
+                eprintln!("Receiving error: {}", e);
+                // break;
+            }
+        }
+        let full_dest_path_clone_2 = full_dest_path_clone.clone();
+        match std::fs::File::open(full_dest_path_clone_2) {
+            Ok(f) => {
+                let len = f.metadata().unwrap().len();
+                //eprintln!("opened, len: {len}");
+            }
+            Err(e) => {
+                eprintln!("couldn't open: {e}");
+            }
+        }
+
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+});
+*/
+//handle_copy.join();
+//handle_read.join();
+//std::thread::spawn(move || watch(&dest_path_clone));
+//std::thread::spawn(move || {
+//    match copy_file(&selected_item, &full_dest_path) {
+//        Ok(_) => {
+//            eprintln!("Copied")
+//        }
+//        Err(e) => {
+//            eprintln!("Couldn't cpy: {e}")
+//        }
+//    }
+//});
+//scoped });

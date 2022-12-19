@@ -30,7 +30,7 @@ use cursive::{
     direction::Orientation,
     event::{Event, MouseButton, MouseEvent},
     views::{CircularFocus, ListView, OnEventView, ProgressBar, ScrollView, TextContent},
-    Vec2,
+    Vec2, View,
 };
 use cursive::{theme::ColorStyle, Cursive};
 use cursive::{
@@ -215,14 +215,25 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         .child(Button::new_raw("[ Peek ]", |s| {
             prepare_peek_view(s);
         }));
+    let progress_on_event = OnEventView::new(
+        ProgressBar::new()
+            .with_name("cpy_progress")
+            .fixed_width(4 /*length of Copy */),
+    );
+    /*let progress_on_event = progress_on_event.on_event(
+        Event::Mouse {
+            offset: (),
+            position: (),
+            event: (),
+        },
+        |s| {
+            f5_handler(s);
+        },
+    );*/
     let copy_progress_layout = LinearLayout::horizontal()
         .child(TextView::new("F5").style(ColorStyle::title_primary()))
         .child(TextView::new("[ "))
-        .child(
-            ProgressBar::new()
-                .with_name("cpy_progress")
-                .fixed_width(4 /*length of Copy */),
-        ) //++artie, careful with names, name of progress bar on cpy_dlg may clash
+        .child(progress_on_event) //++artie, careful with names, name of progress bar on cpy_dlg may clash
         .child(TextView::new(" ]"));
     let copy_progress_layout = copy_progress_layout.with_name("copy_progress_layout");
     //let copy_progress_layout = copy_progress_layout.fixed_height(0);
