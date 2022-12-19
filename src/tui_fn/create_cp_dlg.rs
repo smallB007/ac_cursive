@@ -45,7 +45,7 @@ pub fn create_cp_dlg(
         interrupt_tx_clone_2.send(nix::sys::signal::Signal::SIGCONT);
     })
     .button("Background", |s| {
-        hide_cpy_dlg(s);
+        hide_cpy_dlg(s, true);
     })
     .title("Copy")
     .with_name("cpy_dlg");

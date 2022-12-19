@@ -12,11 +12,11 @@ use std::{
 };
 
 use super::cp_utils::copying_job;
-pub fn cp_client_main<F, F2 /*, F3*/>(
+pub fn cp_client_main<F, F2, F3>(
     copy_jobiess: Vec<copying_job>,
     update_cpy_dlg_callback: F,
     show_cpy_dlg_cb: F2, //++artie, not needed, items are deselected during gathering
-    hide_cpy_dlg_cb: F2, //++artie, not needed, items are deselected during gathering
+    hide_cpy_dlg_cb: F3, //++artie, not needed, items are deselected during gathering
     rx_copy_jobs: std::sync::mpsc::Receiver<Vec<copying_job>>,
     tx_client_thread_started: std::sync::mpsc::Sender<()>,
     cb_sink: CbSink,
@@ -24,7 +24,7 @@ pub fn cp_client_main<F, F2 /*, F3*/>(
 where
     F: FnOnce(&mut Cursive, u64, u64, u64) + 'static + std::marker::Send + std::marker::Copy,
     F2: FnOnce(&mut Cursive) + 'static + std::marker::Send + std::marker::Copy,
-    //F3: FnOnce(&mut Cursive) + 'static + std::marker::Send + std::marker::Copy,
+    F3: FnOnce(&mut Cursive, bool) + 'static + std::marker::Send + std::marker::Copy,
 {
     tx_client_thread_started.send(());
     // Pick a name. There isn't a helper function for this, mostly because it's largely unnecessary:
@@ -143,7 +143,7 @@ where
 
         cb_sink
             .send(Box::new(move |siv| {
-                hide_cpy_dlg_cb(siv);
+                hide_cpy_dlg_cb(siv, false);
             }))
             .unwrap();
     }

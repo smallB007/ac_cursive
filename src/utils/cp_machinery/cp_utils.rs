@@ -87,12 +87,10 @@ pub fn show_cpy_dlg(s: &mut Cursive) {
         //++artie rfctr
         "copy_stack_view",
         |copy_stack_view: &mut StackView| match copy_stack_view
-            .find_layer_from_name("copy_progress_layout")
+            .find_layer_from_name_like_human_being("copy_progress_layout")
         {
             Some(inx) => {
-                if inx == LayerPosition::FromFront(1) {
-                    copy_stack_view.move_to_back(LayerPosition::FromFront(0));
-                }
+                copy_stack_view.move_to_back(LayerPosition::FromBack(inx));
             }
             None => {}
         },
@@ -116,7 +114,7 @@ pub fn show_cpy_dlg(s: &mut Cursive) {
     }
 }
 
-pub fn hide_cpy_dlg(s: &mut Cursive) {
+pub fn hide_cpy_dlg(s: &mut Cursive, show_progress_on_cpy_btn: bool) {
     s.call_on_name(
         //++artie rfctr
         "copy_stack_view",
@@ -124,8 +122,10 @@ pub fn hide_cpy_dlg(s: &mut Cursive) {
             .find_layer_from_name_like_human_being("copy_progress_layout")
         {
             Some(inx) => {
-                if inx == 0 {
-                    copy_stack_view.move_to_front(LayerPosition::FromBack(0));
+                if show_progress_on_cpy_btn {
+                    copy_stack_view.move_to_front(LayerPosition::FromBack(inx));
+                } else {
+                    copy_stack_view.move_to_back(LayerPosition::FromBack(inx));
                 }
             }
             None => {}
@@ -271,8 +271,8 @@ pub fn f5_handler(s: &mut Cursive) {
             if let Err(e) = cp_client_main(
                 copying_jobs,
                 &update_copy_dlg,
-                show_cpy_dlg as fn(&mut Cursive),
-                hide_cpy_dlg as fn(&mut Cursive),
+                &show_cpy_dlg,
+                &hide_cpy_dlg,
                 jobs_receiver_rx,
                 client_thread_started_tx,
                 cb_sink_for_client_thread,
