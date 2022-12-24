@@ -2,6 +2,8 @@ use anyhow::Context;
 use cursive::{CbSink, Cursive};
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream, NameTypeSupport};
 
+use crate::utils::cp_machinery::cp_types::copy_job;
+
 use std::{
     io::{self, prelude::*, BufReader},
     path::PathBuf,
@@ -10,14 +12,12 @@ use std::{
         Arc, Condvar, Mutex,
     },
 };
-
-use super::cp_utils::copying_job;
 pub fn cp_client_main<F, F2, F3>(
-    copy_jobiess: Vec<copying_job>,
+    copy_jobiess: Vec<copy_job>,
     update_cpy_dlg_callback: F,
     show_cpy_dlg_cb: F2, //++artie, not needed, items are deselected during gathering
     hide_cpy_dlg_cb: F3, //++artie, not needed, items are deselected during gathering
-    rx_copy_jobs: std::sync::mpsc::Receiver<Vec<copying_job>>,
+    rx_copy_jobs: std::sync::mpsc::Receiver<Vec<copy_job>>,
     tx_client_thread_started: std::sync::mpsc::Sender<()>,
     cb_sink: CbSink,
 ) -> anyhow::Result<()>
@@ -140,7 +140,6 @@ where
             // stacking on top of one another.
             buffer.clear();
         }
-
         cb_sink
             .send(Box::new(move |siv| {
                 hide_cpy_dlg_cb(siv, false);

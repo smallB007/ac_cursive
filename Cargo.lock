@@ -15,6 +15,7 @@ dependencies = [
  "nix",
  "notify",
  "notify-debouncer-mini",
+ "once_cell",
  "rand",
  "signal-hook",
  "thiserror",

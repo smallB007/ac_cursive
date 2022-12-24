@@ -22,16 +22,10 @@ use crate::{
     },
     utils::{
         common_utils::*,
+        cp_machinery::cp_types::{copy_job, CopyJobs},
         cp_machinery::{cp_client_main::cp_client_main, cp_server_main::cp_server_main},
     },
 };
-#[derive(Clone)]
-pub struct copying_job {
-    pub source: String,
-    pub target: String,
-    pub cb_sink: CbSink,
-    pub inx: usize,
-}
 fn deselect_copied_item(s: &mut Cursive, copied_item_inx: usize) {
     s.call_on_name(
         LEFT_TABLE_VIEW_NAME,
@@ -40,23 +34,23 @@ fn deselect_copied_item(s: &mut Cursive, copied_item_inx: usize) {
         },
     );
 }
-pub fn update_copy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, percent: u64) {
+pub fn update_cpy_dlg_with_new_items(s: &mut Cursive, total_items: u64) {
+    s.call_on_name("total_items", |text_view: &mut TextView| {
+        let total_so_far = text_view.get_content().source().parse::<u64>().unwrap();
+        let new_total = total_so_far + total_items;
+        text_view.set_content(format!("{new_total}",));
+    });
+}
+pub fn update_cpy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, percent: u64) {
     s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
-        text_view.set_content(format!("Copied {selected_item_n} of {total_items}",));
+        text_view.set_content(format!("{selected_item_n}",));
+    });
+    s.call_on_name("total_items", |text_view: &mut TextView| {
+        text_view.set_content(format!("{total_items}",));
     });
     s.call_on_all_named("cpy_progress", |progress_bar: &mut ProgressBar| {
         progress_bar.set_value(percent as usize);
     });
-    match s.call_on_name("cpy_percent", |text_view: &mut TextView| {
-        text_view.set_content(format!("{percent}"));
-    }) {
-        Some(_) => {
-            eprintln!("update_copy_dlg success: {}", percent)
-        }
-        None => {
-            eprintln!("update_copy_dlg NOT success: {}", percent)
-        }
-    }
 }
 
 pub fn update_copy_dlg_with_error(s: &mut Cursive, error: String) {
@@ -184,14 +178,14 @@ pub fn close_cpy_dlg(s: &mut Cursive) {
     }
 }
 fn transfer_copying_jobs(
-    copying_jobs: Vec<copying_job>,
-    jobs_sender_tx: std::sync::mpsc::Sender<Vec<copying_job>>,
+    copying_jobs: Vec<copy_job>,
+    jobs_sender_tx: std::sync::mpsc::Sender<Vec<copy_job>>,
     rx_client_thread_started: std::sync::mpsc::Receiver<()>,
 ) {
     rx_client_thread_started.recv();
     jobs_sender_tx.send(copying_jobs);
 }
-pub fn f5_handler(s: &mut Cursive) {
+pub fn f5_handler_interprocess(s: &mut Cursive) {
     let ((src_table, _), (_, dest_panel)) = if get_active_table_name(s) == LEFT_TABLE_VIEW_NAME {
         (
             //++artie only one item neede to return
@@ -208,7 +202,7 @@ pub fn f5_handler(s: &mut Cursive) {
     //eprintln!("{:?}", selected_items);
     let dest_path = get_current_path_from_dialog_name(s, String::from(dest_panel));
 
-    let mut copying_jobs: Vec<copying_job> = Vec::new();
+    let mut copying_jobs: Vec<copy_job> = Vec::new();
     for (inx, selected_item) in selected_items {
         match PathBuf::from(&selected_item).file_name() {
             Some(file_name) => {
@@ -217,7 +211,7 @@ pub fn f5_handler(s: &mut Cursive) {
                     format!("{}/{}", &dest_path, os_string_to_lossy_string(&file_name));
 
                 let cb_sink = s.cb_sink().clone();
-                copying_jobs.push(copying_job {
+                copying_jobs.push(copy_job {
                     source: selected_item.clone(),
                     target: full_dest_path.clone(),
                     cb_sink,
@@ -230,10 +224,10 @@ pub fn f5_handler(s: &mut Cursive) {
         }
     }
     show_cpy_dlg(s);
-    if s.user_data::<std::sync::mpsc::Sender<Vec<copying_job>>>()
+    if s.user_data::<std::sync::mpsc::Sender<Vec<copy_job>>>()
         .is_some()
     {
-        let sender: &mut std::sync::mpsc::Sender<Vec<copying_job>> = s.user_data().unwrap();
+        let sender: &mut std::sync::mpsc::Sender<Vec<copy_job>> = s.user_data().unwrap();
         sender.send(copying_jobs);
     } else {
         let (jobs_sender_tx, jobs_receiver_rx) = std::sync::mpsc::channel();
@@ -270,7 +264,7 @@ pub fn f5_handler(s: &mut Cursive) {
             let _ = rcv.recv();
             if let Err(e) = cp_client_main(
                 copying_jobs,
-                &update_copy_dlg,
+                &update_cpy_dlg,
                 &show_cpy_dlg,
                 &hide_cpy_dlg,
                 jobs_receiver_rx,
@@ -295,10 +289,10 @@ pub fn f5_handler(s: &mut Cursive) {
     }
     /* std::thread::spawn(move || {
         let copying_jobs_len = copying_jobs.len();
-        for (inx, copying_job) in copying_jobs.iter().enumerate() {
-            let selected_item = copying_job.0.clone();
-            let full_destination_path = copying_job.1.clone();
-            let cb_sink = copying_job.2.clone();
+        for (inx, copy_job) in copying_jobs.iter().enumerate() {
+            let selected_item = copy_job.0.clone();
+            let full_destination_path = copy_job.1.clone();
+            let cb_sink = copy_job.2.clone();
             //let cb_sink_clone = cb_sink.clone(); //++artie only needed at the end
             let handle = std::thread::spawn(move || {
                 copying_engine(
@@ -401,3 +395,57 @@ let _handle_read = std::thread::spawn(move || {
 //    }
 //});
 //scoped });
+fn prepare_cp_jobs(s: &mut Cursive) -> CopyJobs {
+    let ((src_table, _), (_, dest_panel)) = if get_active_table_name(s) == LEFT_TABLE_VIEW_NAME {
+        (
+            //++artie only one item neede to return
+            (LEFT_TABLE_VIEW_NAME, LEFT_PANEL_NAME),
+            (RIGHT_TABLE_VIEW_NAME, RIGHT_PANEL_NAME),
+        )
+    } else {
+        (
+            (RIGHT_TABLE_VIEW_NAME, RIGHT_PANEL_NAME),
+            (LEFT_TABLE_VIEW_NAME, LEFT_PANEL_NAME),
+        )
+    };
+    let selected_items = get_active_table_selected_items(s, src_table, true);
+    //eprintln!("{:?}", selected_items);
+    let dest_path = get_current_path_from_dialog_name(s, String::from(dest_panel));
+
+    let mut copying_jobs = CopyJobs::new();
+    for (inx, selected_item) in selected_items {
+        match PathBuf::from(&selected_item).file_name() {
+            Some(file_name) => {
+                let full_dest_path =
+                    format!("{}/{}", &dest_path, os_string_to_lossy_string(&file_name));
+
+                let cb_sink = s.cb_sink().clone();
+                copying_jobs.push_back(copy_job {
+                    source: selected_item.clone(),
+                    target: full_dest_path.clone(),
+                    cb_sink,
+                    inx,
+                });
+            }
+            None => {
+                eprintln!("Couldn't copy {selected_item}");
+            }
+        }
+    }
+
+    copying_jobs
+}
+use crate::utils::cp_machinery::copy_new::init_cp_sequence;
+pub fn f5_handler(s: &mut Cursive) {
+    let cp_jobs = prepare_cp_jobs(s);
+
+    if s.user_data::<std::sync::mpsc::Sender<CopyJobs>>().is_some() {
+        let sender: &mut std::sync::mpsc::Sender<CopyJobs> = s.user_data().unwrap();
+        sender.send(cp_jobs);
+    } else {
+        let (tx, rx) = std::sync::mpsc::channel();
+        tx.send(cp_jobs);
+        init_cp_sequence(rx);
+        s.set_user_data(tx);
+    }
+}

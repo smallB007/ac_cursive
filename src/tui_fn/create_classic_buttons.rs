@@ -22,7 +22,7 @@ use crate::{
         },
         cp_machinery::cp_client_main::cp_client_main,
         cp_machinery::cp_utils::{close_cpy_dlg, f5_handler, show_cpy_dlg},
-        cp_machinery::{cp_server_main::cp_server_main, cp_utils::update_copy_dlg},
+        cp_machinery::{cp_server_main::cp_server_main, cp_utils::update_cpy_dlg},
     },
 };
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
@@ -175,7 +175,7 @@ fn copying_engine(
                     let percent = (len as f64 / selected_item_len as f64) * 100_f64;
                     cb_sink
                         .send(Box::new(move |siv| {
-                            update_copy_dlg(siv, selected_item_n, total_items, percent as u64)
+                            update_cpy_dlg(siv, selected_item_n, total_items, percent as u64)
                         }))
                         .unwrap();
                 }

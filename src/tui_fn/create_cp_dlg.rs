@@ -16,12 +16,10 @@ pub fn create_cp_dlg(
 ) {
     let mut cpy_dlg = Dialog::around(
         LinearLayout::vertical()
-            .child(TextView::new("").with_name("copied_n_of_x"))
             .child(
                 LinearLayout::horizontal()
-                    .child(TextView::new("Copied: ")) //++artie, just format!
-                    .child(TextView::new("").with_name("cpy_percent"))
-                    .child(TextView::new("%")),
+                    .child(TextView::new("").with_name("copied_n_of_x"))
+                    .child(TextView::new("").with_name("total_items")),
             )
             .child(ProgressBar::new().with_name("cpy_progress"))
             .child(
