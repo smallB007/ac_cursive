@@ -10,27 +10,20 @@ use std::{
 };
 
 pub fn init_cp_sequence(copy_jobs_feed_rx: Receiver<CopyJobs>) {
-    std::thread::spawn(|| {
-        server_thread(copy_jobs_feed_rx);
-    });
+    server_thread(copy_jobs_feed_rx);
 }
 
 fn server_thread(copy_jobs_feed_rx: Receiver<CopyJobs>) {
-    std::thread::scope(|s| {
-        s.spawn(move || {
-            eprintln!("[SERVER] Trying to get data");
-            for copy_jobs in copy_jobs_feed_rx.try_iter() {
-                eprintln!("[SERVER] Processing Data filled by client");
-                for cp_job in copy_jobs {
-                    perform_op(cp_job);
-                }
-                eprintln!("[SERVER] Waiting for 2 sec for new data");
-                std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::spawn(move || {
+        eprintln!("[SERVER] Trying to get data");
+        for copy_jobs in copy_jobs_feed_rx.try_iter() {
+            eprintln!("[SERVER] Processing Data filled by client");
+            for cp_job in copy_jobs {
+                perform_op(cp_job);
             }
-        });
+        }
+        eprintln!("[SERVER] Exiting >>>>>>>>>>>>>>>>>>>>");
     });
-
-    eprintln!("[SERVER] Exiting >>>>>>>>>>>>>>>>>>>>");
 }
 
 fn perform_op(data: copy_job) {
@@ -38,7 +31,7 @@ fn perform_op(data: copy_job) {
         "[LONG OP]>>>>>>>>>BEGIN: from: { } to: {}",
         data.source, data.target
     );
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    std::thread::sleep(std::time::Duration::from_secs(10));
     eprintln!(
         "[LONG OP]>>>>>>>>>END: from: {} to: {}",
         data.source, data.target
