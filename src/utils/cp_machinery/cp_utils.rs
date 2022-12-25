@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::VecDeque, path::PathBuf};
 
 use cursive::{
     views::{
@@ -435,17 +435,23 @@ fn prepare_cp_jobs(s: &mut Cursive) -> CopyJobs {
 
     copying_jobs
 }
+
 use crate::utils::cp_machinery::copy_new::init_cp_sequence;
+
 pub fn f5_handler(s: &mut Cursive) {
     let cp_jobs = prepare_cp_jobs(s);
 
     if s.user_data::<std::sync::mpsc::Sender<CopyJobs>>().is_some() {
-        let sender: &mut std::sync::mpsc::Sender<CopyJobs> = s.user_data().unwrap();
-        sender.send(cp_jobs);
+        let tx_cp_jobs: &mut std::sync::mpsc::Sender<CopyJobs> = s.user_data().unwrap();
+        if tx_cp_jobs.send(cp_jobs).is_err() {
+            eprintln!("Send err 1: tx_cp_jobs.send(cp_jobs)");
+        }
     } else {
-        let (tx, rx) = std::sync::mpsc::channel();
-        tx.send(cp_jobs);
-        init_cp_sequence(rx);
-        s.set_user_data(tx);
+        let (tx_cp_jobs, rx_cp_jobs) = std::sync::mpsc::channel();
+        if tx_cp_jobs.send(cp_jobs).is_err() {
+            eprintln!("Send err 2: tx_cp_jobs.send(cp_jobs)");
+        }
+        init_cp_sequence(rx_cp_jobs, s.cb_sink().clone());
+        s.set_user_data(tx_cp_jobs);
     }
 }

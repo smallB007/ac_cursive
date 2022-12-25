@@ -1,4 +1,5 @@
 use crate::utils::cp_machinery::cp_types::{copy_job, CopyJobs, GLOBAL_DATA};
+use cursive::CbSink;
 use once_cell::sync::Lazy;
 use std::{
     collections::{HashMap, VecDeque},
@@ -9,11 +10,11 @@ use std::{
     thread::JoinHandle,
 };
 
-pub fn init_cp_sequence(copy_jobs_feed_rx: Receiver<CopyJobs>) {
-    server_thread(copy_jobs_feed_rx);
+pub fn init_cp_sequence(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) {
+    server_thread(copy_jobs_feed_rx, cb_sink);
 }
 
-fn server_thread(copy_jobs_feed_rx: Receiver<CopyJobs>) {
+fn server_thread(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) {
     std::thread::spawn(move || {
         eprintln!("[SERVER] Trying to get data");
         for copy_jobs in copy_jobs_feed_rx.try_iter() {
@@ -23,6 +24,14 @@ fn server_thread(copy_jobs_feed_rx: Receiver<CopyJobs>) {
             }
         }
         eprintln!("[SERVER] Exiting >>>>>>>>>>>>>>>>>>>>");
+        if cb_sink
+            .send(Box::new(|s| {
+                s.set_user_data(());
+            }))
+            .is_err()
+        {
+            eprintln!("Err 1: cb_sink.send");
+        }
     });
 }
 
@@ -31,7 +40,7 @@ fn perform_op(data: copy_job) {
         "[LONG OP]>>>>>>>>>BEGIN: from: { } to: {}",
         data.source, data.target
     );
-    std::thread::sleep(std::time::Duration::from_secs(10));
+    std::thread::sleep(std::time::Duration::from_secs(5));
     eprintln!(
         "[LONG OP]>>>>>>>>>END: from: {} to: {}",
         data.source, data.target
