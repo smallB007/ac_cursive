@@ -1,9 +1,11 @@
 use std::{collections::VecDeque, path::PathBuf};
 
+use crate::cursive::view::{Nameable, Resizable};
+
 use cursive::{
     views::{
-        Dialog, LayerPosition, ListView, NamedView, ProgressBar, ResizedView, StackView,
-        TextContent, TextView,
+        Dialog, LayerPosition, LinearLayout, ListView, NamedView, ProgressBar, ResizedView,
+        ScrollView, StackView, TextContent, TextView,
     },
     CbSink, Cursive,
 };
@@ -16,14 +18,11 @@ use futures::SinkExt;
 
 use crate::{
     definitions::definitions::*,
-    tui_fn::{
-        create_cp_dlg::create_cp_dlg,
-        create_table::{BasicColumn, DirView},
-    },
+    tui_fn::create_table::{BasicColumn, DirView},
     utils::{
         common_utils::*,
+        //cp_machinery::cp_client_main::cp_client_main,
         cp_machinery::cp_types::{copy_job, CopyJobs},
-        cp_machinery::{cp_client_main::cp_client_main, cp_server_main::cp_server_main},
     },
 };
 fn deselect_copied_item(s: &mut Cursive, copied_item_inx: usize) {
@@ -42,12 +41,12 @@ pub fn update_cpy_dlg_with_new_items(s: &mut Cursive, total_items: u64) {
     });
 }
 pub fn update_cpy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, percent: u64) {
-    s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
-        text_view.set_content(format!("{selected_item_n}",));
-    });
-    s.call_on_name("total_items", |text_view: &mut TextView| {
-        text_view.set_content(format!("{total_items}",));
-    });
+    //s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
+    //    text_view.set_content(format!("{selected_item_n}",));
+    //});
+    //s.call_on_name("total_items", |text_view: &mut TextView| {
+    //    text_view.set_content(format!("{total_items}",));
+    //});
     s.call_on_all_named("cpy_progress", |progress_bar: &mut ProgressBar| {
         progress_bar.set_value(percent as usize);
     });
@@ -66,6 +65,7 @@ pub fn update_copy_dlg_with_error(s: &mut Cursive, error: String) {
 }
 
 pub fn cpy_dlg_show_continue_btn(s: &mut Cursive) {
+    //++artie refactor to show button + lbl
     s.call_on_name("cpy_dlg", move |dlg: &mut Dialog| {
         dlg.show_button("<Continue>", "<Pause>");
     });
@@ -143,7 +143,19 @@ pub fn hide_cpy_dlg(s: &mut Cursive, show_progress_on_cpy_btn: bool) {
         None => {}
     }
 }
-
+pub fn open_cpy_dlg(
+    s: &mut Cursive,
+    interrupt_tx_pause: Crossbeam_Sender<nix::sys::signal::Signal>,
+    interrupt_tx_continue: Crossbeam_Sender<nix::sys::signal::Signal>,
+    interrupt_tx_cancel: Crossbeam_Sender<nix::sys::signal::Signal>,
+) {
+    let cpy_dlg = create_cp_dlg(
+        interrupt_tx_pause,
+        interrupt_tx_continue,
+        interrupt_tx_cancel,
+    );
+    s.add_layer(cpy_dlg);
+}
 pub fn close_cpy_dlg(s: &mut Cursive) {
     s.call_on_name(
         //++artie rfctr
@@ -185,6 +197,7 @@ fn transfer_copying_jobs(
     rx_client_thread_started.recv();
     jobs_sender_tx.send(copying_jobs);
 }
+#[cfg(unused)]
 pub fn f5_handler_interprocess(s: &mut Cursive) {
     let ((src_table, _), (_, dest_panel)) = if get_active_table_name(s) == LEFT_TABLE_VIEW_NAME {
         (
@@ -259,7 +272,7 @@ pub fn f5_handler_interprocess(s: &mut Cursive) {
             use crate::utils::cp_machinery::cp_utils::update_copy_dlg_with_error;
             let (snd, rcv) = std::sync::mpsc::channel();
             let srv_thread = std::thread::spawn(move || {
-                cp_server_main(snd, cb_sink, &update_copy_dlg_with_error, interrupt_rx)
+                // cp_server_main(snd, cb_sink, &update_copy_dlg_with_error, interrupt_rx)
             });
             let _ = rcv.recv();
             if let Err(e) = cp_client_main(
@@ -454,4 +467,47 @@ pub fn f5_handler(s: &mut Cursive) {
         init_cp_sequence(rx_cp_jobs, s.cb_sink().clone());
         s.set_user_data(tx_cp_jobs);
     }
+}
+
+pub fn create_cp_dlg(
+    interrupt_tx_pause: Crossbeam_Sender<nix::sys::signal::Signal>,
+    interrupt_tx_continue: Crossbeam_Sender<nix::sys::signal::Signal>,
+    interrupt_tx_cancel: Crossbeam_Sender<nix::sys::signal::Signal>,
+) -> ResizedView<NamedView<Dialog>> {
+    let cpy_dlg = Dialog::around(
+        LinearLayout::vertical()
+            .child(
+                LinearLayout::horizontal()
+                    .child(TextView::new("").with_name("copied_n_of_x"))
+                    .child(TextView::new("").with_name("total_items")),
+            )
+            .child(ProgressBar::new().with_name("cpy_progress"))
+            .child(
+                LinearLayout::vertical()
+                    .child(
+                        TextView::new("Errors detected:")
+                            .max_height(0)
+                            .with_name("error_list_label"), /*++artie, 0 == invisible ;) */
+                    )
+                    .child(ScrollView::new(ListView::new().with_name("error_list"))),
+            ),
+    )
+    .button("Cancel", move |s| {
+        eprintln!("Cancelling copy ops");
+        interrupt_tx_cancel.send(nix::sys::signal::Signal::SIGTERM);
+    })
+    .button("Pause", move |s| {
+        interrupt_tx_pause.send(nix::sys::signal::Signal::SIGSTOP);
+    })
+    .button_hidden("Continue", move |s| {
+        interrupt_tx_continue.send(nix::sys::signal::Signal::SIGCONT);
+    })
+    .button("Background", |s| {
+        hide_cpy_dlg(s, true);
+    })
+    .title("Copy")
+    .with_name("cpy_dlg");
+    let cpy_dlg = cpy_dlg.max_height(15);
+
+    cpy_dlg
 }

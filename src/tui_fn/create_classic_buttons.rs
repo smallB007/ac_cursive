@@ -13,16 +13,15 @@ use std::{
 use crate::{
     cursive::view::Nameable,
     definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME},
-    tui_fn::create_cp_dlg::create_cp_dlg,
     utils::{
         common_utils::{
             copy_file, get_active_table_first_selected_index, get_active_table_first_selected_item,
             get_active_table_name, get_current_path_from_dialog_name, os_string_to_lossy_string,
             select_index,
         },
-        cp_machinery::cp_client_main::cp_client_main,
+        //cp_machinery::cp_client_main::cp_client_main,
+        cp_machinery::cp_utils::update_cpy_dlg,
         cp_machinery::cp_utils::{close_cpy_dlg, f5_handler, show_cpy_dlg},
-        cp_machinery::{cp_server_main::cp_server_main, cp_utils::update_cpy_dlg},
     },
 };
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
