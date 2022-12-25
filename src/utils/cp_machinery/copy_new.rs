@@ -3,6 +3,7 @@ use crate::utils::cp_machinery::{
     cp_utils::{close_cpy_dlg, open_cpy_dlg, update_cpy_dlg},
 };
 use cursive::CbSink;
+use nix::sys::signal::Signal;
 use once_cell::sync::Lazy;
 use std::{
     collections::{HashMap, VecDeque},
@@ -32,27 +33,33 @@ fn open_cpy_dlg_hlpr(cb_sink: CbSink) -> Crossbeam_Receiver<nix::sys::signal::Si
 
     interrupt_rx
 }
+fn close_cpy_dlg_hlpr(cb_sink: CbSink) {
+    if cb_sink
+        .send(Box::new(|s| {
+            s.set_user_data(());
+            close_cpy_dlg(s);
+        }))
+        .is_err()
+    {
+        eprintln!("Err 1: cb_sink.send");
+    }
+}
+fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: Receiver<CopyJobs>) {
+    eprintln!("[SERVER] Trying to get data");
+    for copy_jobs in copy_jobs_feed_rx.try_iter() {
+        eprintln!("[SERVER] Processing Data filled by client");
+        for cp_job in copy_jobs {
+            perform_op(cp_job, &interrupt_rx);
+        }
+    }
+    eprintln!("[SERVER] Exiting >>>>>>>>>>>>>>>>>>>>");
+}
+
 fn server_thread(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) {
     std::thread::spawn(move || {
-        eprintln!("[SERVER] Trying to get data");
-
         let interrupt_rx = open_cpy_dlg_hlpr(cb_sink.clone());
-        for copy_jobs in copy_jobs_feed_rx.try_iter() {
-            eprintln!("[SERVER] Processing Data filled by client");
-            for cp_job in copy_jobs {
-                perform_op(cp_job, &interrupt_rx);
-            }
-        }
-        eprintln!("[SERVER] Exiting >>>>>>>>>>>>>>>>>>>>");
-        if cb_sink
-            .send(Box::new(|s| {
-                s.set_user_data(());
-                close_cpy_dlg(s);
-            }))
-            .is_err()
-        {
-            eprintln!("Err 1: cb_sink.send");
-        }
+        enter_cpy_loop(interrupt_rx, copy_jobs_feed_rx);
+        close_cpy_dlg_hlpr(cb_sink);
     });
 }
 
@@ -65,7 +72,7 @@ fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal:
         job.target.clone(),
         job.cb_sink.clone(),
     );
-    rx_progress.recv();init_cp_sequence
+    rx_progress.recv();
     cp_path_new(job, &interrupt_rx);
     watch_progress_handle.join();
     eprintln!("[COPYING] FINISHED");
