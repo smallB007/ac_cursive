@@ -1,6 +1,6 @@
 use crate::utils::cp_machinery::{
     cp_types::{copy_job, CopyJobs},
-    cp_utils::{close_cpy_dlg, open_cpy_dlg, update_cpy_dlg},
+    cp_utils::{close_cpy_dlg_hlpr, open_cpy_dlg_hlpr, show_cpy_dlg_hlpr, update_cpy_dlg},
 };
 use cursive::CbSink;
 use nix::sys::signal::Signal;
@@ -14,39 +14,15 @@ use std::{
     },
     thread::JoinHandle,
 };
-
 pub fn init_cp_sequence(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) {
     server_thread(copy_jobs_feed_rx, cb_sink);
 }
-fn open_cpy_dlg_hlpr(cb_sink: CbSink) -> Crossbeam_Receiver<nix::sys::signal::Signal> {
-    let (interrupt_tx_cancel, interrupt_rx) = crossbeam::channel::unbounded();
-    let interrupt_tx_continue = interrupt_tx_cancel.clone();
-    let interrupt_tx_pause = interrupt_tx_cancel.clone();
-    cb_sink.send(Box::new(move |s| {
-        open_cpy_dlg(
-            s,
-            interrupt_tx_pause,
-            interrupt_tx_continue,
-            interrupt_tx_cancel,
-        );
-    }));
 
-    interrupt_rx
-}
-fn close_cpy_dlg_hlpr(cb_sink: CbSink) {
-    if cb_sink
-        .send(Box::new(|s| {
-            s.set_user_data(());
-            close_cpy_dlg(s);
-        }))
-        .is_err()
-    {
-        eprintln!("Err 1: cb_sink.send");
-    }
-}
 fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: Receiver<CopyJobs>) {
     eprintln!("[SERVER] Trying to get data");
     for copy_jobs in copy_jobs_feed_rx.try_iter() {
+        let cb_sink = copy_jobs[0].cb_sink.clone();
+        show_cpy_dlg_hlpr(cb_sink);
         eprintln!("[SERVER] Processing Data filled by client");
         for cp_job in copy_jobs {
             execute_process("rm", &["-f", &cp_job.target], None);

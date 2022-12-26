@@ -450,12 +450,49 @@ fn prepare_cp_jobs(s: &mut Cursive) -> CopyJobs {
 }
 
 use crate::utils::cp_machinery::copy_new::init_cp_sequence;
+pub fn open_cpy_dlg_hlpr(cb_sink: CbSink) -> Crossbeam_Receiver<nix::sys::signal::Signal> {
+    let (interrupt_tx_cancel, interrupt_rx) = crossbeam::channel::unbounded();
+    let interrupt_tx_continue = interrupt_tx_cancel.clone();
+    let interrupt_tx_pause = interrupt_tx_cancel.clone();
+    cb_sink.send(Box::new(move |s| {
+        open_cpy_dlg(
+            s,
+            interrupt_tx_pause,
+            interrupt_tx_continue,
+            interrupt_tx_cancel,
+        );
+    }));
 
+    interrupt_rx
+}
+pub fn close_cpy_dlg_hlpr(cb_sink: CbSink) {
+    if cb_sink
+        .send(Box::new(|s| {
+            s.set_user_data(());
+            close_cpy_dlg(s);
+        }))
+        .is_err()
+    {
+        eprintln!("Err close_cpy_dlg_hlpr");
+    }
+}
+pub fn show_cpy_dlg_hlpr(cb_sink: CbSink) {
+    if cb_sink
+        .send(Box::new(|s| {
+            crate::utils::cp_machinery::cp_utils::show_cpy_dlg(s);
+        }))
+        .is_err()
+    {
+        eprintln!("Err show_cpy_dlg_hlpr");
+    }
+}
 pub fn f5_handler(s: &mut Cursive) {
     let cp_jobs = prepare_cp_jobs(s);
 
     if s.user_data::<std::sync::mpsc::Sender<CopyJobs>>().is_some() {
         let tx_cp_jobs: &mut std::sync::mpsc::Sender<CopyJobs> = s.user_data().unwrap();
+        let cb_sink = cp_jobs[0].cb_sink.clone();
+        show_cpy_dlg_hlpr(cb_sink);
         if tx_cp_jobs.send(cp_jobs).is_err() {
             eprintln!("Send err 1: tx_cp_jobs.send(cp_jobs)");
         }
