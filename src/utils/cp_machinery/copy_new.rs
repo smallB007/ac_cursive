@@ -75,7 +75,12 @@ fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal:
         job.cb_sink.clone(),
     );
     rx_progress.recv();
-    cp_path_new(job, &interrupt_rx);
+    execute_process(
+        "cp",
+        &["-f", &job.source.clone(), &job.target.clone()],
+        Some(InterruptComponents { job, interrupt_rx }),
+    );
+
     watch_progress_handle.join();
     eprintln!("[COPYING] FINISHED");
 }
@@ -88,6 +93,7 @@ use signal_hook::consts::*;
 use signal_hook::iterator::Signals;
 use std::io::prelude::*;
 use std::process::{Command, Stdio};
+#[cfg(unused)]
 fn cp_path_new(
     //++artie, use execute process
     job: copy_job,

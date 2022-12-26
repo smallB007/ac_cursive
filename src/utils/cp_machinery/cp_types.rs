@@ -14,7 +14,7 @@ pub struct copy_job {
     pub source: String,
     pub target: String,
     pub cb_sink: CbSink,
-    pub inx: usize,
+    pub inx: usize, //++artie, not needed
 }
 
 pub type CopyJobs = VecDeque<copy_job>;
