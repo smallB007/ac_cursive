@@ -44,11 +44,13 @@ fn close_cpy_dlg_hlpr(cb_sink: CbSink) {
         eprintln!("Err 1: cb_sink.send");
     }
 }
+fn rm_dest(target: &str) {}
 fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: Receiver<CopyJobs>) {
     eprintln!("[SERVER] Trying to get data");
     for copy_jobs in copy_jobs_feed_rx.try_iter() {
         eprintln!("[SERVER] Processing Data filled by client");
         for cp_job in copy_jobs {
+            execute_process("rm", &["-f", &cp_job.target], None);
             perform_op(cp_job, &interrupt_rx);
         }
     }
@@ -87,6 +89,7 @@ use signal_hook::iterator::Signals;
 use std::io::prelude::*;
 use std::process::{Command, Stdio};
 fn cp_path_new(
+    //++artie, use execute process
     job: copy_job,
     interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>,
 ) -> Cp_error {
@@ -182,9 +185,9 @@ fn create_watch_progress_thread(
                 Ok(f) => {
                     let len = f.metadata().unwrap().len();
                     let percent = if len == selected_item_len || selected_item_len == 0 {
-                        100
+                        100 //case where original file is zero length
                     } else {
-                        (len / selected_item_len) * 100
+                        ((len as f64 / selected_item_len as f64) * 100_f64) as u64
                     };
 
                     // eprintln!("percent,  {percent}");
@@ -221,4 +224,85 @@ fn create_watch_progress_thread(
     });
 
     progress_watch_thread_handle
+}
+struct InterruptComponents<'a> {
+    job: copy_job,
+    interrupt_rx: &'a Crossbeam_Receiver<nix::sys::signal::Signal>,
+}
+fn execute_process(
+    process: &str,
+    args: &[&str],
+    interrupt_component: Option<InterruptComponents>,
+) -> Cp_error {
+    let mut process = match Command::new(process)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+    {
+        Err(why) => {
+            return Cp_error::CP_COULDNOT_START;
+        }
+        Ok(process) => process,
+    };
+    match interrupt_component {
+        Some(interrupt_component) => {
+            let timeout = tick(std::time::Duration::from_secs(2));
+            loop {
+                select! {
+                    recv(interrupt_component.interrupt_rx) -> interrupt_rx_result => {
+                        println!("Received interrupt notification:{:?}",interrupt_rx_result);
+                        let id = process.id();
+                        match interrupt_rx_result
+                        {
+                            Ok(nix::sys::signal::Signal::SIGSTOP)=>{
+                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGSTOP);
+                                interrupt_component.job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_continue_btn(s)}));
+                            },
+                            Ok(nix::sys::signal::Signal::SIGCONT)=>{
+                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
+                                interrupt_component.job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_pause_btn(s)}));
+                            },
+                            Ok(nix::sys::signal::Signal::SIGTERM)=>{
+                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
+                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
+                                break;
+                            },
+                            _=>{}
+                        }
+                      },
+                    recv(timeout) -> _ => {
+                        eprintln!("Checking if we finished the long task");
+                        match process.try_wait() {
+                            Ok(Some(status)) =>{ eprintln!("exited with: {status}");break;},
+                            Ok(None) => {
+                                eprintln!("status not ready yet");
+                            }
+                            Err(e) => {eprintln!("error attempting to wait: {e}");break;},
+                        }
+                    }
+                }
+                eprintln!("AFTER SELECT>>>>>>>>>>>>>>>>>>>>>>");
+            }
+        }
+        None => {}
+    }
+
+    eprintln!("AFTER LOOP>>>>>>>>>>>>>>>>>>>>>>");
+
+    {
+        let mut buf = String::new();
+        match process.stderr.unwrap().read_to_string(&mut buf) {
+            Err(why) => {
+                return Cp_error::CP_COULDNOT_READ_STDERR;
+            }
+            Ok(_) => {
+                if buf.len() != 0 {
+                    return Cp_error::CP_EXIT_STATUS_ERROR(buf);
+                }
+            }
+        }
+    }
+    Cp_error::CP_EXIT_STATUS_SUCCESS
 }
