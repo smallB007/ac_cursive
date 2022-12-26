@@ -1,7 +1,11 @@
 use crate::utils::cp_machinery::{
     cp_types::{copy_job, CopyJobs},
-    cp_utils::{close_cpy_dlg_hlpr, open_cpy_dlg_hlpr, show_cpy_dlg_hlpr, update_cpy_dlg},
+    cp_utils::{
+        close_cpy_dlg_hlpr, open_cpy_dlg_hlpr, show_and_update_cpy_dlg_with_total_count,
+        show_cpy_dlg_hlpr, update_cpy_dlg_progress, update_cpy_dlg_with_new_items_hlpr,
+    },
 };
+
 use cursive::CbSink;
 use nix::sys::signal::Signal;
 use once_cell::sync::Lazy;
@@ -21,9 +25,11 @@ pub fn init_cp_sequence(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) 
 fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: Receiver<CopyJobs>) {
     eprintln!("[SERVER] Trying to get data");
     for copy_jobs in copy_jobs_feed_rx.try_iter() {
-        let cb_sink = copy_jobs[0].cb_sink.clone();
-        show_cpy_dlg_hlpr(cb_sink);
         eprintln!("[SERVER] Processing Data filled by client");
+        show_and_update_cpy_dlg_with_total_count(
+            copy_jobs[0].cb_sink.clone(),
+            copy_jobs.len() as u64,
+        );
         for cp_job in copy_jobs {
             execute_process("rm", &["-f", &cp_job.target], None);
             perform_op(cp_job, &interrupt_rx);
@@ -170,13 +176,9 @@ fn create_watch_progress_thread(
                     } else {
                         ((len as f64 / selected_item_len as f64) * 100_f64) as u64
                     };
-
-                    // eprintln!("percent,  {percent}");
                     cb_sink
                         .send(Box::new(move |siv| {
-                            update_cpy_dlg(
-                                siv, /*selected_item_n*/ 0, /*total_items */ 0, percent,
-                            );
+                            update_cpy_dlg_progress(siv, percent);
                         }))
                         .unwrap();
 

@@ -40,7 +40,8 @@ pub fn update_cpy_dlg_with_new_items(s: &mut Cursive, total_items: u64) {
         text_view.set_content(format!("{new_total}",));
     });
 }
-pub fn update_cpy_dlg(s: &mut Cursive, selected_item_n: u64, total_items: u64, percent: u64) {
+pub fn update_cpy_dlg_progress(s: &mut Cursive, percent: u64) {
+    //++artie, change name to update_progress
     //s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
     //    text_view.set_content(format!("{selected_item_n}",));
     //});
@@ -277,7 +278,7 @@ pub fn f5_handler_interprocess(s: &mut Cursive) {
             let _ = rcv.recv();
             if let Err(e) = cp_client_main(
                 copying_jobs,
-                &update_cpy_dlg,
+                &update_cpy_dlg_progress,
                 &show_cpy_dlg,
                 &hide_cpy_dlg,
                 jobs_receiver_rx,
@@ -486,13 +487,29 @@ pub fn show_cpy_dlg_hlpr(cb_sink: CbSink) {
         eprintln!("Err show_cpy_dlg_hlpr");
     }
 }
+pub fn show_and_update_cpy_dlg_with_total_count(cb_sink: CbSink, total_count: u64) {
+    let cb_sink_a = cb_sink.clone();
+    let cb_sink_b = cb_sink_a.clone();
+    show_cpy_dlg_hlpr(cb_sink_a);
+    update_cpy_dlg_with_new_items_hlpr(cb_sink_b, total_count);
+}
+pub fn update_cpy_dlg_with_new_items_hlpr(cb_sink: CbSink, new_items_count: u64) {
+    if cb_sink
+        .send(Box::new(move |s| {
+            crate::utils::cp_machinery::cp_utils::update_cpy_dlg_with_new_items(s, new_items_count);
+        }))
+        .is_err()
+    {
+        eprintln!("Err show_cpy_dlg_hlpr");
+    }
+}
+
 pub fn f5_handler(s: &mut Cursive) {
     let cp_jobs = prepare_cp_jobs(s);
 
     if s.user_data::<std::sync::mpsc::Sender<CopyJobs>>().is_some() {
         let tx_cp_jobs: &mut std::sync::mpsc::Sender<CopyJobs> = s.user_data().unwrap();
-        let cb_sink = cp_jobs[0].cb_sink.clone();
-        show_cpy_dlg_hlpr(cb_sink);
+        show_and_update_cpy_dlg_with_total_count(cp_jobs[0].cb_sink.clone(), cp_jobs.len() as u64);
         if tx_cp_jobs.send(cp_jobs).is_err() {
             eprintln!("Send err 1: tx_cp_jobs.send(cp_jobs)");
         }
@@ -516,7 +533,7 @@ pub fn create_cp_dlg(
             .child(
                 LinearLayout::horizontal()
                     .child(TextView::new("").with_name("copied_n_of_x"))
-                    .child(TextView::new("").with_name("total_items")),
+                    .child(TextView::new("0").with_name("total_items")),
             )
             .child(ProgressBar::new().with_name("cpy_progress"))
             .child(

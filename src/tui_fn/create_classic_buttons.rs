@@ -20,7 +20,7 @@ use crate::{
             select_index,
         },
         //cp_machinery::cp_client_main::cp_client_main,
-        cp_machinery::cp_utils::update_cpy_dlg,
+        cp_machinery::cp_utils::update_cpy_dlg_progress,
         cp_machinery::cp_utils::{close_cpy_dlg, f5_handler, show_cpy_dlg},
     },
 };
@@ -98,7 +98,7 @@ fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
 
     Ok(())
 }
-
+#[cfg(unused)]
 fn copying_engine(
     selected_item: &str,
     selected_item_n: u64,
@@ -174,7 +174,12 @@ fn copying_engine(
                     let percent = (len as f64 / selected_item_len as f64) * 100_f64;
                     cb_sink
                         .send(Box::new(move |siv| {
-                            update_cpy_dlg(siv, selected_item_n, total_items, percent as u64)
+                            update_cpy_dlg_progress(
+                                siv,
+                                selected_item_n,
+                                total_items,
+                                percent as u64,
+                            )
                         }))
                         .unwrap();
                 }
