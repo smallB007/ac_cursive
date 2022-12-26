@@ -44,7 +44,6 @@ fn close_cpy_dlg_hlpr(cb_sink: CbSink) {
         eprintln!("Err 1: cb_sink.send");
     }
 }
-fn rm_dest(target: &str) {}
 fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: Receiver<CopyJobs>) {
     eprintln!("[SERVER] Trying to get data");
     for copy_jobs in copy_jobs_feed_rx.try_iter() {
