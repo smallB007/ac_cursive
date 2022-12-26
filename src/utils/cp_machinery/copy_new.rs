@@ -181,20 +181,22 @@ fn create_watch_progress_thread(
             match std::fs::File::open(full_dest_path_clone) {
                 Ok(f) => {
                     let len = f.metadata().unwrap().len();
-                    let percent = (len as f64 / selected_item_len as f64) * 100_f64;
+                    let percent = if len == selected_item_len || selected_item_len == 0 {
+                        100
+                    } else {
+                        (len / selected_item_len) * 100
+                    };
+
                     // eprintln!("percent,  {percent}");
                     cb_sink
                         .send(Box::new(move |siv| {
                             update_cpy_dlg(
-                                siv,
-                                /*selected_item_n*/ 0 as u64,
-                                /*total_items */ 0 as u64,
-                                percent as u64,
+                                siv, /*selected_item_n*/ 0, /*total_items */ 0, percent,
                             );
                         }))
                         .unwrap();
 
-                    if percent >= 100_f64 {
+                    if percent >= 100 {
                         eprintln!("exiting percent,  {percent}");
                         return;
                     }
