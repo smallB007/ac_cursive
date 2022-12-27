@@ -53,6 +53,18 @@ pub fn update_cpy_dlg_progress(s: &mut Cursive, percent: u64) {
     });
 }
 
+pub fn update_cpy_dlg_current_item_number_hlpr(cb_sink: CbSink, current_item_no: u64) {
+    cb_sink.send(Box::new(move |s| {
+        update_cpy_dlg_current_item_number(s, current_item_no);
+    }));
+}
+
+pub fn update_cpy_dlg_current_item_number(s: &mut Cursive, current_item_no: u64) {
+    s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
+        text_view.set_content(format!("{current_item_no}",));
+    });
+}
+
 pub fn update_copy_dlg_with_error(s: &mut Cursive, error: String) {
     s.call_on_name(
         "error_list_label",
