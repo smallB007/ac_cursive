@@ -56,17 +56,25 @@ fn server_thread(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) {
 fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>) {
     eprintln!("[COPYING] START: from: { } to: {}", job.source, job.target);
     let (tx_progress, rx_progress) = std::sync::mpsc::channel();
+    let break_condition = Arc::new(Mutex::new(false));
+    let break_condition_for_progress_thread = break_condition.clone();
+    let break_condition_for_copying_thread = break_condition.clone();
     let watch_progress_handle = create_watch_progress_thread(
         tx_progress,
         job.source.clone(),
         job.target.clone(),
         job.cb_sink.clone(),
+        break_condition_for_progress_thread,
     );
     rx_progress.recv();
     execute_process(
         "cp",
         &["-f", &job.source.clone(), &job.target.clone()],
-        Some(InterruptComponents { job, interrupt_rx }),
+        Some(InterruptComponents {
+            job,
+            interrupt_rx,
+            break_condition: break_condition_for_copying_thread,
+        }),
     );
 
     watch_progress_handle.join();
@@ -162,7 +170,7 @@ fn create_watch_progress_thread(
     selected_item: String,
     full_dest_path: String,
     cb_sink: CbSink,
-    //break_condition: Arc<Mutex<bool>>,
+    break_condition: Arc<Mutex<bool>>,
 ) -> JoinHandle<()> {
     let progress_watch_thread_handle = std::thread::spawn(move || {
         snd_progress_watch.send(()); //sync point, let know that the thread started
@@ -174,6 +182,15 @@ fn create_watch_progress_thread(
             }
         };
         loop {
+            match break_condition.try_lock() {
+                Ok(mutex_guard) => {
+                    if *mutex_guard == true {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+
             let full_dest_path_clone = full_dest_path.clone();
             match std::fs::File::open(full_dest_path_clone) {
                 Ok(f) => {
@@ -218,6 +235,7 @@ fn create_watch_progress_thread(
 struct InterruptComponents<'a> {
     job: copy_job,
     interrupt_rx: &'a Crossbeam_Receiver<nix::sys::signal::Signal>,
+    break_condition: Arc<Mutex<bool>>,
 }
 fn execute_process(
     process: &str,
@@ -257,6 +275,10 @@ fn execute_process(
                             Ok(nix::sys::signal::Signal::SIGTERM)=>{
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
+                                {
+                                let mut mutex_guard = interrupt_component.break_condition.lock().unwrap();
+                                *mutex_guard = true;
+                                }
                                 break;
                             },
                             _=>{}
