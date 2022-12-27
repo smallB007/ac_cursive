@@ -2,11 +2,11 @@ use crate::utils::cp_machinery::{
     cp_types::{copy_job, CopyJobs},
     cp_utils::{
         close_cpy_dlg_hlpr, open_cpy_dlg_hlpr, show_and_update_cpy_dlg_with_total_count,
-        show_cpy_dlg_hlpr, update_cpy_dlg_current_item_number_hlpr,
+        show_path_exists_dlg_hlpr, update_cpy_dlg_current_item_number_hlpr,
         update_cpy_dlg_current_item_source_target_hlpr, update_cpy_dlg_progress,
+        ExistingPathDilemma,
     },
 };
-
 use cursive::CbSink;
 use nix::sys::signal::Signal;
 use once_cell::sync::Lazy;
@@ -23,8 +23,13 @@ pub fn init_cp_sequence(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) 
     server_thread(copy_jobs_feed_rx, cb_sink);
 }
 
+fn check_if_destination_path_exists(target: &str) -> bool {
+    std::path::Path::new(target).exists()
+}
 fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: Receiver<CopyJobs>) {
     eprintln!("[SERVER] Trying to get data");
+    let mut overwrite_all_flag = false;
+    let mut skip_all_flag = false;
     for copy_jobs in copy_jobs_feed_rx.try_iter() {
         eprintln!("[SERVER] Processing Data filled by client");
         show_and_update_cpy_dlg_with_total_count(
@@ -32,6 +37,32 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
             copy_jobs.len() as u64,
         );
         for (inx, cp_job) in copy_jobs.into_iter().enumerate() {
+            if !overwrite_all_flag {
+                if check_if_destination_path_exists(&cp_job.target) {
+                    if skip_all_flag {
+                        continue;
+                    }
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    show_path_exists_dlg_hlpr(cp_job.cb_sink.clone(), cp_job.target.to_owned(), tx);
+                    match rx.recv() {
+                        Ok(existing_path_dilemma) => match existing_path_dilemma {
+                            ExistingPathDilemma::OverwriteAll => {
+                                overwrite_all_flag = true;
+                            }
+                            ExistingPathDilemma::OverwriteCurrent => {}
+                            ExistingPathDilemma::SkipAll => {
+                                skip_all_flag = true;
+                            }
+                            ExistingPathDilemma::SkipCurrent => {
+                                continue;
+                            }
+                        },
+                        Err(e) => {
+                            return;
+                        }
+                    }
+                }
+            }
             execute_process("rm", &["-f", &cp_job.target], None);
             update_cpy_dlg_current_item_number_hlpr(cp_job.cb_sink.clone(), (inx + 1) as u64);
             update_cpy_dlg_current_item_source_target_hlpr(
@@ -273,6 +304,9 @@ fn execute_process(
                                 interrupt_component.job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_pause_btn(s)}));
                             },
                             Ok(nix::sys::signal::Signal::SIGTERM)=>{
+                                /*Two steps:
+                                a) kill process
+                                b) set flag to true so the watch progress thread can finish */
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
                                 {

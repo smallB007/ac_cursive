@@ -1,13 +1,14 @@
-use std::{collections::VecDeque, path::PathBuf};
+use std::{collections::VecDeque, path::PathBuf, sync::mpsc::Sender};
 
 use crate::cursive::view::{Nameable, Resizable};
 
 use cursive::{
+    self, theme, views,
     views::{
         Dialog, LayerPosition, LinearLayout, ListView, NamedView, ProgressBar, ResizedView,
-        ScrollView, StackView, TextContent, TextView,
+        ScrollView, StackView, TextContent, TextView, ThemedView,
     },
-    CbSink, Cursive,
+    CbSink, Cursive, With,
 };
 
 use crossbeam::channel::{
@@ -609,4 +610,60 @@ pub fn create_cp_dlg(
     let cpy_dlg = cpy_dlg.max_height(15);
 
     cpy_dlg
+}
+
+pub enum ExistingPathDilemma {
+    SkipCurrent,
+    SkipAll,
+    OverwriteCurrent,
+    OverwriteAll,
+}
+pub fn create_path_exists_dlg(
+    dest: String,
+    overwrite_current_tx: Sender<ExistingPathDilemma>,
+) -> Dialog {
+    let dlg = Dialog::around(TextView::new(format!("Destination exists: {}", dest))).button(
+        "Skip",
+        move |s| {
+            if overwrite_current_tx
+                .send(ExistingPathDilemma::SkipCurrent)
+                .is_err()
+            {
+                eprintln!("Err send: ExistingPathDilemma::SkipCurrent");
+            }
+            //interrupt_tx_cancel.send(nix::sys::signal::Signal::SIGTERM);
+        },
+    );
+    dlg
+}
+
+pub fn show_path_exists_dlg_hlpr(
+    cb_sink: CbSink,
+    dest: String,
+    overwrite_current_tx: Sender<ExistingPathDilemma>,
+) {
+    cb_sink.send(Box::new(move |s| {
+        show_path_exists_dlg(s, dest, overwrite_current_tx);
+    }));
+}
+
+pub fn show_path_exists_dlg(
+    s: &mut Cursive,
+    dest: String,
+    overwrite_current_tx: Sender<ExistingPathDilemma>,
+) {
+    let dlg = create_path_exists_dlg(dest, overwrite_current_tx);
+    show_error_themed_dialog(s, dlg);
+}
+
+fn show_error_themed_dialog(s: &mut cursive::Cursive, dlg: Dialog) {
+    let theme = s.current_theme().clone().with(|theme| {
+        theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Red);
+        theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::Yellow);
+        theme.palette[theme::PaletteColor::TitlePrimary] =
+            theme::Color::Light(theme::BaseColor::Yellow);
+        theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Green);
+    });
+
+    s.add_layer(views::ThemedView::new(theme, views::Layer::new(dlg)));
 }
