@@ -2,8 +2,8 @@ use crate::utils::cp_machinery::{
     cp_types::{copy_job, CopyJobs},
     cp_utils::{
         close_cpy_dlg_hlpr, open_cpy_dlg_hlpr, show_and_update_cpy_dlg_with_total_count,
-        show_cpy_dlg_hlpr, update_cpy_dlg_current_item_number_hlpr, update_cpy_dlg_progress,
-        update_cpy_dlg_with_new_items_hlpr,
+        show_cpy_dlg_hlpr, update_cpy_dlg_current_item_number_hlpr,
+        update_cpy_dlg_current_item_source_target_hlpr, update_cpy_dlg_progress,
     },
 };
 
@@ -33,7 +33,12 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
         );
         for (inx, cp_job) in copy_jobs.into_iter().enumerate() {
             execute_process("rm", &["-f", &cp_job.target], None);
-            update_cpy_dlg_current_item_number_hlpr(cp_job.cb_sink.clone(), inx as u64);
+            update_cpy_dlg_current_item_number_hlpr(cp_job.cb_sink.clone(), (inx + 1) as u64);
+            update_cpy_dlg_current_item_source_target_hlpr(
+                cp_job.cb_sink.clone(),
+                cp_job.source.clone(),
+                cp_job.target.clone(),
+            );
             perform_op(cp_job, &interrupt_rx);
         }
     }

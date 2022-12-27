@@ -33,13 +33,7 @@ fn deselect_copied_item(s: &mut Cursive, copied_item_inx: usize) {
         },
     );
 }
-pub fn update_cpy_dlg_with_new_items(s: &mut Cursive, total_items: u64) {
-    s.call_on_name("total_items", |text_view: &mut TextView| {
-        let total_so_far = text_view.get_content().source().parse::<u64>().unwrap();
-        let new_total = total_so_far + total_items;
-        text_view.set_content(format!("{new_total}",));
-    });
-}
+
 pub fn update_cpy_dlg_progress(s: &mut Cursive, percent: u64) {
     //++artie, change name to update_progress
     //s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
@@ -61,10 +55,27 @@ pub fn update_cpy_dlg_current_item_number_hlpr(cb_sink: CbSink, current_item_no:
 
 pub fn update_cpy_dlg_current_item_number(s: &mut Cursive, current_item_no: u64) {
     s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
-        text_view.set_content(format!("{current_item_no}",));
+        text_view.set_content(format!("{current_item_no}",)); //++artie, must be number only, otherwise parsing will panic
     });
 }
 
+pub fn update_cpy_dlg_current_item_source_target_hlpr(
+    cb_sink: CbSink,
+    souce: String,
+    target: String,
+) {
+    cb_sink.send(Box::new(move |s| {
+        update_cpy_dlg_current_item_source_target(s, souce, target);
+    }));
+}
+pub fn update_cpy_dlg_current_item_source_target(s: &mut Cursive, souce: String, target: String) {
+    s.call_on_name("source_path", |text_view: &mut TextView| {
+        text_view.set_content(souce); //++artie, must be number only, otherwise parsing will panic
+    });
+    s.call_on_name("target_path", |text_view: &mut TextView| {
+        text_view.set_content(target); //++artie, must be number only, otherwise parsing will panic
+    });
+}
 pub fn update_copy_dlg_with_error(s: &mut Cursive, error: String) {
     s.call_on_name(
         "error_list_label",
@@ -515,6 +526,16 @@ pub fn update_cpy_dlg_with_new_items_hlpr(cb_sink: CbSink, new_items_count: u64)
         eprintln!("Err show_cpy_dlg_hlpr");
     }
 }
+pub fn update_cpy_dlg_with_new_items(s: &mut Cursive, total_items: u64) {
+    s.call_on_name("total_items", |text_view: &mut TextView| {
+        let total_so_far = match text_view.get_content().source().parse::<u64>() {
+            Ok(val) => val,
+            Err(_) => 0,
+        };
+        let new_total = total_so_far + total_items;
+        text_view.set_content(format!("{new_total}",)); //++artie, must be number only, otherwise parsing will panic
+    });
+}
 
 pub fn f5_handler(s: &mut Cursive) {
     let cp_jobs = prepare_cp_jobs(s);
@@ -544,8 +565,20 @@ pub fn create_cp_dlg(
         LinearLayout::vertical()
             .child(
                 LinearLayout::horizontal()
+                    .child(TextView::new("Copying: "))
                     .child(TextView::new("").with_name("copied_n_of_x"))
-                    .child(TextView::new("0").with_name("total_items")),
+                    .child(TextView::new(" of "))
+                    .child(TextView::new("").with_name("total_items")),
+            )
+            .child(
+                LinearLayout::vertical()
+                    .child(TextView::new("From: "))
+                    .child(TextView::new("").with_name("source_path")),
+            )
+            .child(
+                LinearLayout::vertical()
+                    .child(TextView::new("To: "))
+                    .child(TextView::new("").with_name("target_path")),
             )
             .child(ProgressBar::new().with_name("cpy_progress"))
             .child(
