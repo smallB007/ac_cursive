@@ -1,6 +1,6 @@
-use std::{collections::VecDeque, path::PathBuf, sync::mpsc::Sender};
-
 use crate::cursive::view::{Nameable, Resizable};
+use std::fs::Permissions;
+use std::{collections::VecDeque, path::PathBuf, sync::mpsc::Sender};
 
 use crossbeam::channel::{
     self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
@@ -103,12 +103,42 @@ pub fn cpy_dlg_show_pause_btn(s: &mut Cursive) {
         dlg.show_button("<Pause>", "<Continue>");
     });
 }
+pub fn set_dlg_visible_hlpr(cb_sink: CbSink, dlg_name: &'static str, visible: bool) {
+    cb_sink.send(Box::new(move |s| {
+        set_dlg_visible(s, &dlg_name, visible);
+    }));
+}
+#[cfg(unused)]
 pub fn show_dlg_hlpr(cb_sink: CbSink, dlg_name: &'static str) {
     cb_sink.send(Box::new(move |s| {
         show_dlg(s, &dlg_name);
     }));
 }
+pub fn set_dlg_visible(s: &mut Cursive, dlg_name: &str, visible: bool) {
+    match s.call_on_name(dlg_name, |_: &mut Dialog| ()) {
+        /*If call on name succeeds it means that dlg with that name exists */
+        Some(()) => {
+            match s
+                .screen_mut()
+                .find_layer_from_name_like_human_being(dlg_name)
+            {
+                Some(inx) => {
+                    if visible {
+                        s.screen_mut().move_to_front(LayerPosition::FromBack(inx));
+                    } else {
+                        s.screen_mut().move_to_back(LayerPosition::FromBack(inx));
+                    }
+                }
+                None => {
+                    eprintln!("Layer not found")
+                }
+            }
+        }
+        None => {}
+    }
+}
 pub fn show_dlg(s: &mut Cursive, dlg_name: &str) {
+    //++artie, deprecated, use set_dlg_visible
     match s.call_on_name(dlg_name, |_: &mut Dialog| ()) {
         /*If call on name succeeds it means that dlg with that name exists */
         Some(()) => {
@@ -128,6 +158,7 @@ pub fn show_dlg(s: &mut Cursive, dlg_name: &str) {
     }
 }
 pub fn hide_dlg(s: &mut Cursive, dlg_name: &str) {
+    //++artie, deprecated, use set_dlg_visible
     match s.call_on_name(dlg_name, |_: &mut Dialog| ()) {
         /*If call on name succeeds it means that dlg with that name exists */
         Some(()) => {
@@ -178,12 +209,13 @@ pub fn show_cpy_dlg(s: &mut Cursive) {
         None => {}
     }
 }
+#[cfg(unused)]
 pub fn hide_dlg_hlpr(cb_sink: CbSink, dlg_name: &'static str) {
     cb_sink.send(Box::new(move |s| {
         hide_dlg(s, dlg_name);
     }));
 }
-
+#[cfg(unused)]
 pub fn hide_cpy_dlg(s: &mut Cursive, show_progress_on_cpy_btn: bool) {
     //++artie, deprecated, use hide_dlg
     s.call_on_name(
@@ -675,7 +707,7 @@ pub fn create_cp_dlg(
         interrupt_tx_continue.send(nix::sys::signal::Signal::SIGCONT);
     })
     .button("Background", |s| {
-        hide_cpy_dlg(s, true);
+        set_dlg_visible(s, CPY_DLG_NAME, false);
     })
     .title("Copy")
     .with_name(CPY_DLG_NAME);
@@ -689,42 +721,73 @@ pub enum ExistingPathDilemma {
     SkipAll,
     OverwriteCurrent,
     OverwriteAll,
+    ReplaceOlder,
+    ReplaceNewer,
+    DifferentSizes,
 }
 pub fn create_path_exists_dlg(
-    dest: String,
+    source: String,
+    target: String,
     overwrite_current_tx: Sender<ExistingPathDilemma>,
 ) -> NamedView<Dialog> {
-    let dlg = Dialog::around(TextView::new(format!("Destination exists: {}", dest)))
-        .button("Skip", move |s| {
-            if overwrite_current_tx
-                .send(ExistingPathDilemma::SkipCurrent)
-                .is_err()
-            {
-                eprintln!("Err send: ExistingPathDilemma::SkipCurrent");
-            }
-            close_dlg(s, PATH_EXISTS_DLG_NAME);
-            //interrupt_tx_cancel.send(nix::sys::signal::Signal::SIGTERM);
-        })
-        .with_name(PATH_EXISTS_DLG_NAME);
+    let dlg = Dialog::around(
+        LinearLayout::vertical()
+            .child(
+                LinearLayout::vertical()
+                    .child(TextView::new("Source:"))
+                    .child(TextView::new(source)),
+            )
+            .child(
+                LinearLayout::vertical()
+                    .child(TextView::new("Target:"))
+                    .child(TextView::new(target)),
+            ),
+    )
+    .button("Skip", move |s| {
+        if overwrite_current_tx
+            .send(ExistingPathDilemma::SkipCurrent)
+            .is_err()
+        {
+            eprintln!("Err send: ExistingPathDilemma::SkipCurrent");
+        }
+        close_dlg(s, PATH_EXISTS_DLG_NAME);
+    })
+    .title("Path exists")
+    .with_name(PATH_EXISTS_DLG_NAME);
     dlg
 }
 
 pub fn show_path_exists_dlg_hlpr(
     cb_sink: CbSink,
-    dest: String,
+    source: String,
+    target: String,
     overwrite_current_tx: Sender<ExistingPathDilemma>,
 ) {
     cb_sink.send(Box::new(move |s| {
-        show_path_exists_dlg(s, dest, overwrite_current_tx);
+        show_path_exists_dlg(s, source, target, overwrite_current_tx);
     }));
 }
 
 pub fn show_path_exists_dlg(
     s: &mut Cursive,
-    dest: String,
+    source: String,
+    target: String,
     overwrite_current_tx: Sender<ExistingPathDilemma>,
 ) {
-    let dlg = create_path_exists_dlg(dest, overwrite_current_tx);
+    let source_info = match file_info(&source) {
+        Ok(info) => info,
+        Err(e) => {
+            format!("Couldn't get info for {}, reason: {}", source, e)
+        }
+    };
+    let target_info = match file_info(&target) {
+        Ok(info) => info,
+        Err(e) => {
+            format!("Couldn't get info for {}, reason: {}", source, e)
+        }
+    };
+
+    let dlg = create_path_exists_dlg(source_info, target_info, overwrite_current_tx);
     show_error_themed_view(s, dlg);
 }
 
@@ -734,7 +797,7 @@ fn show_error_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
         let mut theme = Theme::default();
 
         theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Red);
-        theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::Yellow);
+        theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::White);
         theme.palette[theme::PaletteColor::TitlePrimary] =
             theme::Color::Light(theme::BaseColor::Yellow);
         theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Green);
@@ -746,4 +809,62 @@ fn show_error_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
         theme.clone(),
         views::Layer::new(dlg),
     ));
+}
+
+#[cfg(target_os = "linux")]
+pub fn file_info(file: &str) -> Result<String, std::io::Error> {
+    use std::os::unix::prelude::PermissionsExt;
+
+    let metadata = std::fs::metadata(file)?;
+
+    let path = format!("Path: {}", file);
+    let file_type = format!("File type: {:?}", metadata.file_type());
+    let accessed = match metadata.accessed() {
+        Ok(val) => format!("Access time: {:>25}", pretty_print_system_time(val)),
+        Err(e) => {
+            eprintln!("cannot get accessed time: {}", e);
+            String::from("Access time: UNKNOWN")
+        }
+    };
+    let created = match metadata.created() {
+        Ok(val) => format!("Created time: {:>24}", pretty_print_system_time(val)),
+        Err(e) => {
+            eprintln!("cannot get created time: {}", e);
+            String::from("Created time: UNKNOWN")
+        }
+    };
+    let modified = match metadata.modified() {
+        Ok(val) => format!("Modified time: {:>23}", pretty_print_system_time(val)),
+        Err(e) => {
+            eprintln!("cannot get modified time: {}", e);
+            String::from("Modified time: UNKNOWN")
+        }
+    };
+
+    let size_in_bytes = format!("Size in bytes: {}B", metadata.len());
+
+    let permissions = metadata.permissions();
+    let mode = format!(
+        "mode: {}",
+        <Permissions as PermissionsExt>::mode(&permissions)
+    );
+
+    Ok(path
+        + "\n"
+        + &file_type
+        + "\n"
+        + &accessed
+        + "\n"
+        + &created
+        + "\n"
+        + &modified
+        + "\n"
+        + &size_in_bytes
+        + "\n"
+        + &mode)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn file_info(file: &str) -> Result<String, std::io::Error> {
+    std::io::Error
 }

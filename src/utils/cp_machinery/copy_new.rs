@@ -3,8 +3,8 @@ use crate::{
     utils::cp_machinery::{
         cp_types::{copy_job, CopyJobs},
         cp_utils::{
-            close_cpy_dlg_hlpr, hide_dlg_hlpr, open_cpy_dlg_hlpr,
-            show_and_update_cpy_dlg_with_total_count, show_dlg_hlpr, show_path_exists_dlg_hlpr,
+            close_cpy_dlg_hlpr, open_cpy_dlg_hlpr, set_dlg_visible_hlpr,
+            show_and_update_cpy_dlg_with_total_count, show_path_exists_dlg_hlpr,
             update_cpy_dlg_current_item_number_hlpr,
             update_cpy_dlg_current_item_source_target_hlpr, update_cpy_dlg_progress,
             ExistingPathDilemma,
@@ -47,8 +47,14 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                         continue;
                     }
                     let (tx, rx) = std::sync::mpsc::channel();
-                    hide_dlg_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME);
-                    show_path_exists_dlg_hlpr(cp_job.cb_sink.clone(), cp_job.target.to_owned(), tx);
+                    set_dlg_visible_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME, false);
+
+                    show_path_exists_dlg_hlpr(
+                        cp_job.cb_sink.clone(),
+                        cp_job.source.to_owned(),
+                        cp_job.target.to_owned(),
+                        tx,
+                    );
                     match rx.recv() {
                         Ok(existing_path_dilemma) => match existing_path_dilemma {
                             ExistingPathDilemma::OverwriteAll => {
@@ -62,13 +68,14 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                                 eprintln!("Skipping current");
                                 continue;
                             }
+                            _ => {}
                         },
                         Err(e) => {
                             return;
                         }
                     }
                 }
-                show_dlg_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME);
+                set_dlg_visible_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME, true);
             }
             execute_process("rm", &["-f", &cp_job.target], None);
             update_cpy_dlg_current_item_number_hlpr(cp_job.cb_sink.clone(), (inx + 1) as u64);
