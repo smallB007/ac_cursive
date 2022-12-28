@@ -1,10 +1,14 @@
-use crate::utils::cp_machinery::{
-    cp_types::{copy_job, CopyJobs},
-    cp_utils::{
-        close_cpy_dlg_hlpr, open_cpy_dlg_hlpr, show_and_update_cpy_dlg_with_total_count,
-        show_path_exists_dlg_hlpr, update_cpy_dlg_current_item_number_hlpr,
-        update_cpy_dlg_current_item_source_target_hlpr, update_cpy_dlg_progress,
-        ExistingPathDilemma,
+use crate::{
+    definitions::definitions::CPY_DLG_NAME,
+    utils::cp_machinery::{
+        cp_types::{copy_job, CopyJobs},
+        cp_utils::{
+            close_cpy_dlg_hlpr, hide_dlg_hlpr, open_cpy_dlg_hlpr,
+            show_and_update_cpy_dlg_with_total_count, show_dlg_hlpr, show_path_exists_dlg_hlpr,
+            update_cpy_dlg_current_item_number_hlpr,
+            update_cpy_dlg_current_item_source_target_hlpr, update_cpy_dlg_progress,
+            ExistingPathDilemma,
+        },
     },
 };
 use cursive::CbSink;
@@ -43,6 +47,7 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                         continue;
                     }
                     let (tx, rx) = std::sync::mpsc::channel();
+                    hide_dlg_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME.to_owned());
                     show_path_exists_dlg_hlpr(cp_job.cb_sink.clone(), cp_job.target.to_owned(), tx);
                     match rx.recv() {
                         Ok(existing_path_dilemma) => match existing_path_dilemma {
@@ -63,6 +68,7 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                         }
                     }
                 }
+                show_dlg_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME.to_owned());
             }
             execute_process("rm", &["-f", &cp_job.target], None);
             update_cpy_dlg_current_item_number_hlpr(cp_job.cb_sink.clone(), (inx + 1) as u64);

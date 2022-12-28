@@ -93,35 +93,28 @@ pub fn update_copy_dlg_with_error(s: &mut Cursive, error: String) {
 
 pub fn cpy_dlg_show_continue_btn(s: &mut Cursive) {
     //++artie refactor to show button + lbl
-    s.call_on_name("cpy_dlg", move |dlg: &mut Dialog| {
+    s.call_on_name(CPY_DLG_NAME, move |dlg: &mut Dialog| {
         dlg.show_button("<Continue>", "<Pause>");
     });
 }
 
 pub fn cpy_dlg_show_pause_btn(s: &mut Cursive) {
-    s.call_on_name("cpy_dlg", move |dlg: &mut Dialog| {
+    s.call_on_name(CPY_DLG_NAME, move |dlg: &mut Dialog| {
         dlg.show_button("<Pause>", "<Continue>");
     });
 }
-pub fn show_cpy_dlg(s: &mut Cursive) {
-    s.call_on_name(
-        //++artie rfctr
-        "copy_stack_view",
-        |copy_stack_view: &mut StackView| match copy_stack_view
-            .find_layer_from_name_like_human_being("copy_progress_layout")
-        {
-            Some(inx) => {
-                copy_stack_view.move_to_back(LayerPosition::FromBack(inx));
-            }
-            None => {}
-        },
-    );
-    match s.call_on_name("cpy_dlg", |_: &mut Dialog| ()) {
+pub fn show_dlg_hlpr(cb_sink: CbSink, dlg_name: String) {
+    cb_sink.send(Box::new(move |s| {
+        show_dlg(s, &dlg_name);
+    }));
+}
+pub fn show_dlg(s: &mut Cursive, dlg_name: &str) {
+    match s.call_on_name(dlg_name, |_: &mut Dialog| ()) {
         /*If call on name succeeds it means that dlg with that name exists */
         Some(()) => {
             match s
                 .screen_mut()
-                .find_layer_from_name_like_human_being("cpy_dlg")
+                .find_layer_from_name_like_human_being(dlg_name)
             {
                 Some(inx) => {
                     s.screen_mut().move_to_front(LayerPosition::FromBack(inx));
@@ -134,8 +127,65 @@ pub fn show_cpy_dlg(s: &mut Cursive) {
         None => {}
     }
 }
+pub fn hide_dlg(s: &mut Cursive, dlg_name: &str) {
+    match s.call_on_name(dlg_name, |_: &mut Dialog| ()) {
+        /*If call on name succeeds it means that dlg with that name exists */
+        Some(()) => {
+            match s
+                .screen_mut()
+                .find_layer_from_name_like_human_being(dlg_name)
+            {
+                Some(inx) => {
+                    s.screen_mut().move_to_back(LayerPosition::FromBack(inx));
+                }
+                None => {
+                    eprintln!("Layer not found")
+                }
+            }
+        }
+        None => {}
+    }
+}
+pub fn show_cpy_dlg(s: &mut Cursive) {
+    //++artie, deprecated use, show_dlg
+    s.call_on_name(
+        //++artie rfctr
+        "copy_stack_view",
+        |copy_stack_view: &mut StackView| match copy_stack_view
+            .find_layer_from_name_like_human_being("copy_progress_layout")
+        {
+            Some(inx) => {
+                copy_stack_view.move_to_back(LayerPosition::FromBack(inx));
+            }
+            None => {}
+        },
+    );
+    match s.call_on_name(CPY_DLG_NAME, |_: &mut Dialog| ()) {
+        /*If call on name succeeds it means that dlg with that name exists */
+        Some(()) => {
+            match s
+                .screen_mut()
+                .find_layer_from_name_like_human_being(CPY_DLG_NAME)
+            {
+                Some(inx) => {
+                    s.screen_mut().move_to_front(LayerPosition::FromBack(inx));
+                }
+                None => {
+                    eprintln!("Layer not found")
+                }
+            }
+        }
+        None => {}
+    }
+}
+pub fn hide_dlg_hlpr(cb_sink: CbSink, dlg_name: String) {
+    cb_sink.send(Box::new(move |s| {
+        hide_dlg(s, &dlg_name);
+    }));
+}
 
 pub fn hide_cpy_dlg(s: &mut Cursive, show_progress_on_cpy_btn: bool) {
+    //++artie, deprecated, use hide_dlg
     s.call_on_name(
         //++artie rfctr
         "copy_stack_view",
@@ -152,12 +202,12 @@ pub fn hide_cpy_dlg(s: &mut Cursive, show_progress_on_cpy_btn: bool) {
             None => {}
         },
     );
-    match s.call_on_name("cpy_dlg", |_: &mut Dialog| ()) {
+    match s.call_on_name(CPY_DLG_NAME, |_: &mut Dialog| ()) {
         /*If call on name succeeds it means that dlg with that name exists */
         Some(()) => {
             match s
                 .screen_mut()
-                .find_layer_from_name_like_human_being("cpy_dlg")
+                .find_layer_from_name_like_human_being(CPY_DLG_NAME)
             {
                 Some(inx) => {
                     s.screen_mut().move_to_back(LayerPosition::FromBack(inx));
@@ -218,12 +268,12 @@ pub fn close_cpy_dlg(s: &mut Cursive) {
             None => {}
         },
     );
-    match s.call_on_name("cpy_dlg", |_: &mut Dialog| ()) {
+    match s.call_on_name(CPY_DLG_NAME, |_: &mut Dialog| ()) {
         /*If call on name succeeds it means that dlg with that name exists */
         Some(()) => {
             match s
                 .screen_mut()
-                .find_layer_from_name_like_human_being("cpy_dlg")
+                .find_layer_from_name_like_human_being(CPY_DLG_NAME)
             {
                 Some(inx) => {
                     s.screen_mut().remove_layer(LayerPosition::FromBack(inx));
@@ -628,7 +678,7 @@ pub fn create_cp_dlg(
         hide_cpy_dlg(s, true);
     })
     .title("Copy")
-    .with_name("cpy_dlg");
+    .with_name(CPY_DLG_NAME);
     let cpy_dlg = cpy_dlg.max_height(15);
 
     cpy_dlg
