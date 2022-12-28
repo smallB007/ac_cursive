@@ -2,20 +2,22 @@ use std::{collections::VecDeque, path::PathBuf, sync::mpsc::Sender};
 
 use crate::cursive::view::{Nameable, Resizable};
 
+use crossbeam::channel::{
+    self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
+};
 use cursive::{
-    self, theme, views,
+    self,
+    theme::{self, Theme},
+    views,
     views::{
         Dialog, LayerPosition, LinearLayout, ListView, NamedView, ProgressBar, ResizedView,
         ScrollView, StackView, TextContent, TextView, ThemedView,
     },
-    CbSink, Cursive, With,
-};
-
-use crossbeam::channel::{
-    self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
+    CbSink, Cursive, View, With,
 };
 use cursive_table_view::TableView;
 use futures::SinkExt;
+use once_cell::sync::Lazy;
 
 use crate::{
     definitions::definitions::*,
@@ -181,7 +183,27 @@ pub fn open_cpy_dlg(
     );
     s.add_layer(cpy_dlg);
 }
+pub fn close_dlg(s: &mut Cursive, dlg_name: &str) {
+    match s.call_on_name(dlg_name, |_: &mut Dialog| ()) {
+        /*If call on name succeeds it means that dlg with that name exists */
+        Some(()) => {
+            match s
+                .screen_mut()
+                .find_layer_from_name_like_human_being(dlg_name)
+            {
+                Some(inx) => {
+                    s.screen_mut().remove_layer(LayerPosition::FromBack(inx));
+                }
+                None => {
+                    eprintln!("Layer not found")
+                }
+            }
+        }
+        None => {}
+    }
+}
 pub fn close_cpy_dlg(s: &mut Cursive) {
+    //++artie, deprecated, use close_dlg
     s.call_on_name(
         //++artie rfctr
         "copy_stack_view",
@@ -621,19 +643,19 @@ pub enum ExistingPathDilemma {
 pub fn create_path_exists_dlg(
     dest: String,
     overwrite_current_tx: Sender<ExistingPathDilemma>,
-) -> Dialog {
-    let dlg = Dialog::around(TextView::new(format!("Destination exists: {}", dest))).button(
-        "Skip",
-        move |s| {
+) -> NamedView<Dialog> {
+    let dlg = Dialog::around(TextView::new(format!("Destination exists: {}", dest)))
+        .button("Skip", move |s| {
             if overwrite_current_tx
                 .send(ExistingPathDilemma::SkipCurrent)
                 .is_err()
             {
                 eprintln!("Err send: ExistingPathDilemma::SkipCurrent");
             }
+            close_dlg(s, PATH_EXISTS_DLG_NAME);
             //interrupt_tx_cancel.send(nix::sys::signal::Signal::SIGTERM);
-        },
-    );
+        })
+        .with_name(PATH_EXISTS_DLG_NAME);
     dlg
 }
 
@@ -653,17 +675,25 @@ pub fn show_path_exists_dlg(
     overwrite_current_tx: Sender<ExistingPathDilemma>,
 ) {
     let dlg = create_path_exists_dlg(dest, overwrite_current_tx);
-    show_error_themed_dialog(s, dlg);
+    show_error_themed_view(s, dlg);
 }
 
-fn show_error_themed_dialog(s: &mut cursive::Cursive, dlg: Dialog) {
-    let theme = s.current_theme().clone().with(|theme| {
+fn show_error_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
+    let theme = Lazy::new(|| {
+        eprintln!("Lazy theme");
+        let mut theme = Theme::default();
+
         theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Red);
         theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::Yellow);
         theme.palette[theme::PaletteColor::TitlePrimary] =
             theme::Color::Light(theme::BaseColor::Yellow);
         theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Green);
+
+        theme
     });
 
-    s.add_layer(views::ThemedView::new(theme, views::Layer::new(dlg)));
+    s.add_layer(views::ThemedView::new(
+        theme.clone(),
+        views::Layer::new(dlg),
+    ));
 }

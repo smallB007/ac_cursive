@@ -54,6 +54,7 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                                 skip_all_flag = true;
                             }
                             ExistingPathDilemma::SkipCurrent => {
+                                eprintln!("Skipping current");
                                 continue;
                             }
                         },
