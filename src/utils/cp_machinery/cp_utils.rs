@@ -103,7 +103,7 @@ pub fn cpy_dlg_show_pause_btn(s: &mut Cursive) {
         dlg.show_button("<Pause>", "<Continue>");
     });
 }
-pub fn show_dlg_hlpr(cb_sink: CbSink, dlg_name: String) {
+pub fn show_dlg_hlpr(cb_sink: CbSink, dlg_name: &'static str) {
     cb_sink.send(Box::new(move |s| {
         show_dlg(s, &dlg_name);
     }));
@@ -178,9 +178,9 @@ pub fn show_cpy_dlg(s: &mut Cursive) {
         None => {}
     }
 }
-pub fn hide_dlg_hlpr(cb_sink: CbSink, dlg_name: String) {
+pub fn hide_dlg_hlpr(cb_sink: CbSink, dlg_name: &'static str) {
     cb_sink.send(Box::new(move |s| {
-        hide_dlg(s, &dlg_name);
+        hide_dlg(s, dlg_name);
     }));
 }
 

@@ -47,7 +47,7 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                         continue;
                     }
                     let (tx, rx) = std::sync::mpsc::channel();
-                    hide_dlg_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME.to_owned());
+                    hide_dlg_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME);
                     show_path_exists_dlg_hlpr(cp_job.cb_sink.clone(), cp_job.target.to_owned(), tx);
                     match rx.recv() {
                         Ok(existing_path_dilemma) => match existing_path_dilemma {
@@ -68,7 +68,7 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                         }
                     }
                 }
-                show_dlg_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME.to_owned());
+                show_dlg_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME);
             }
             execute_process("rm", &["-f", &cp_job.target], None);
             update_cpy_dlg_current_item_number_hlpr(cp_job.cb_sink.clone(), (inx + 1) as u64);
