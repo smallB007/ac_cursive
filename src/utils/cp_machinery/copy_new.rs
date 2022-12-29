@@ -57,18 +57,28 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                     );
                     match rx.recv() {
                         Ok(existing_path_dilemma) => match existing_path_dilemma {
-                            ExistingPathDilemma::OverwriteAll => {
+                            ExistingPathDilemma::Overwrite(true) => {
+                                eprintln!("Overwrite all");
                                 overwrite_all_flag = true;
                             }
-                            ExistingPathDilemma::OverwriteCurrent => {}
-                            ExistingPathDilemma::SkipAll => {
-                                skip_all_flag = true;
+                            ExistingPathDilemma::Overwrite(false) => {
+                                eprintln!("Overwrite current");
                             }
-                            ExistingPathDilemma::SkipCurrent => {
-                                eprintln!("Skipping current");
+                            ExistingPathDilemma::Skip(true) => {
+                                eprintln!("Skip all");
+                                skip_all_flag = true;
                                 continue;
                             }
-                            _ => {}
+                            ExistingPathDilemma::Skip(false) => {
+                                eprintln!("Skip current");
+                                continue;
+                            }
+                            ExistingPathDilemma::ReplaceOlder(true) => {}
+                            ExistingPathDilemma::ReplaceOlder(false) => {}
+                            ExistingPathDilemma::ReplaceNewer(true) => {}
+                            ExistingPathDilemma::ReplaceNewer(false) => {}
+                            ExistingPathDilemma::DifferentSizes(true) => {}
+                            ExistingPathDilemma::DifferentSizes(false) => {}
                         },
                         Err(e) => {
                             return;

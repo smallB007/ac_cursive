@@ -1,6 +1,0 @@
-Favourite places as a third column
-Cache size calculations and date as it is refreshed every time an item is selected
-Create type for row in table so caching can be implemented easily
-Arrow up starts prev command (ala terminal)
-When item is selected and not in focus background should change
-Add different views, like two, two with different ratio, one, recent/favourites

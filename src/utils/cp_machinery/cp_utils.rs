@@ -578,7 +578,9 @@ fn prepare_cp_jobs(s: &mut Cursive) -> CopyJobs {
     copying_jobs
 }
 
+use super::create_path_exists_dlg::create_path_exists_dlg;
 use crate::utils::cp_machinery::copy_new::init_cp_sequence;
+
 pub fn open_cpy_dlg_hlpr(cb_sink: CbSink) -> Crossbeam_Receiver<nix::sys::signal::Signal> {
     let (interrupt_tx_cancel, interrupt_rx) = crossbeam::channel::unbounded();
     let interrupt_tx_continue = interrupt_tx_cancel.clone();
@@ -717,44 +719,11 @@ pub fn create_cp_dlg(
 }
 
 pub enum ExistingPathDilemma {
-    SkipCurrent,
-    SkipAll,
-    OverwriteCurrent,
-    OverwriteAll,
-    ReplaceOlder,
-    ReplaceNewer,
-    DifferentSizes,
-}
-pub fn create_path_exists_dlg(
-    source: String,
-    target: String,
-    overwrite_current_tx: Sender<ExistingPathDilemma>,
-) -> NamedView<Dialog> {
-    let dlg = Dialog::around(
-        LinearLayout::vertical()
-            .child(
-                LinearLayout::vertical()
-                    .child(TextView::new("Source:"))
-                    .child(TextView::new(source)),
-            )
-            .child(
-                LinearLayout::vertical()
-                    .child(TextView::new("Target:"))
-                    .child(TextView::new(target)),
-            ),
-    )
-    .button("Skip", move |s| {
-        if overwrite_current_tx
-            .send(ExistingPathDilemma::SkipCurrent)
-            .is_err()
-        {
-            eprintln!("Err send: ExistingPathDilemma::SkipCurrent");
-        }
-        close_dlg(s, PATH_EXISTS_DLG_NAME);
-    })
-    .title("Path exists")
-    .with_name(PATH_EXISTS_DLG_NAME);
-    dlg
+    Skip(bool /*all */),
+    Overwrite(bool),
+    ReplaceOlder(bool),
+    ReplaceNewer(bool),
+    DifferentSizes(bool),
 }
 
 pub fn show_path_exists_dlg_hlpr(
