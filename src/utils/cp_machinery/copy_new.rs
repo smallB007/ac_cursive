@@ -3,9 +3,9 @@ use crate::{
     utils::cp_machinery::{
         cp_types::{copy_job, CopyJobs},
         cp_utils::{
-            close_cpy_dlg_hlpr, open_cpy_dlg_hlpr, set_dlg_visible_hlpr,
-            show_and_update_cpy_dlg_with_total_count, show_path_exists_dlg_hlpr,
-            update_cpy_dlg_current_item_number_hlpr,
+            close_cpy_dlg_hlpr, compare_paths_for_modification_time, compare_paths_for_size,
+            open_cpy_dlg_hlpr, set_dlg_visible_hlpr, show_and_update_cpy_dlg_with_total_count,
+            show_path_exists_dlg_hlpr, update_cpy_dlg_current_item_number_hlpr,
             update_cpy_dlg_current_item_source_target_hlpr, update_cpy_dlg_progress,
             ExistingPathDilemma,
         },
@@ -15,6 +15,7 @@ use cursive::CbSink;
 use nix::sys::signal::Signal;
 use once_cell::sync::Lazy;
 use std::{
+    cmp::Ordering,
     collections::{HashMap, VecDeque},
     path::PathBuf,
     sync::{
@@ -34,6 +35,9 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
     eprintln!("[SERVER] Trying to get data");
     let mut overwrite_all_flag = false;
     let mut skip_all_flag = false;
+    let mut replace_all_newer_flag = false;
+    let mut replace_all_older_flag = false;
+    let mut replace_all_different_size_flag = false;
     for copy_jobs in copy_jobs_feed_rx.try_iter() {
         eprintln!("[SERVER] Processing Data filled by client");
         show_and_update_cpy_dlg_with_total_count(
@@ -46,45 +50,85 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                     if skip_all_flag {
                         continue;
                     }
-                    let (tx, rx) = std::sync::mpsc::channel();
-                    set_dlg_visible_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME, false);
+                    let source_target =
+                        compare_paths_for_modification_time(&cp_job.source, &cp_job.target);
+                    eprintln!("Ordering:{:?}", source_target);
+                    let is_target_older_than_source = source_target == Ordering::Greater;
+                    let is_target_newer_than_source = source_target == Ordering::Less;
+                    let is_source_and_target_different_size =
+                        compare_paths_for_size(&cp_job.source, &cp_job.target) != Ordering::Equal;
+                    if !(replace_all_older_flag && is_target_older_than_source)
+                        || !(replace_all_newer_flag && is_target_newer_than_source)
+                        || !(replace_all_different_size_flag && is_source_and_target_different_size)
+                    {
+                        let (tx, rx) = std::sync::mpsc::channel();
+                        set_dlg_visible_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME, false);
 
-                    show_path_exists_dlg_hlpr(
-                        cp_job.cb_sink.clone(),
-                        cp_job.source.to_owned(),
-                        cp_job.target.to_owned(),
-                        tx,
-                    );
-                    match rx.recv() {
-                        Ok(existing_path_dilemma) => match existing_path_dilemma {
-                            ExistingPathDilemma::Overwrite(true) => {
-                                eprintln!("Overwrite all");
-                                overwrite_all_flag = true;
+                        show_path_exists_dlg_hlpr(
+                            cp_job.cb_sink.clone(),
+                            cp_job.source.to_owned(),
+                            cp_job.target.to_owned(),
+                            tx,
+                        );
+                        match rx.recv() {
+                            Ok(existing_path_dilemma) => match existing_path_dilemma {
+                                ExistingPathDilemma::Overwrite(true) => {
+                                    eprintln!("Overwrite all");
+                                    overwrite_all_flag = true;
+                                }
+                                ExistingPathDilemma::Overwrite(false) => {
+                                    eprintln!("Overwrite current");
+                                }
+                                ExistingPathDilemma::Skip(true) => {
+                                    eprintln!("Skip all");
+                                    skip_all_flag = true;
+                                    continue;
+                                }
+                                ExistingPathDilemma::Skip(false) => {
+                                    eprintln!("Skip current");
+                                    continue;
+                                }
+                                ExistingPathDilemma::ReplaceOlder(true) => {
+                                    replace_all_older_flag = true;
+                                    if !is_target_older_than_source {
+                                        continue;
+                                    }
+                                }
+                                ExistingPathDilemma::ReplaceOlder(false) => {
+                                    if !is_target_older_than_source {
+                                        continue;
+                                    }
+                                }
+                                ExistingPathDilemma::ReplaceNewer(true) => {
+                                    replace_all_newer_flag = true;
+                                    if !is_target_newer_than_source {
+                                        continue;
+                                    }
+                                }
+                                ExistingPathDilemma::ReplaceNewer(false) => {
+                                    if !is_target_newer_than_source {
+                                        continue;
+                                    }
+                                }
+                                ExistingPathDilemma::DifferentSizes(true) => {
+                                    replace_all_different_size_flag = true;
+                                    if !is_source_and_target_different_size {
+                                        continue;
+                                    }
+                                }
+                                ExistingPathDilemma::DifferentSizes(false) => {
+                                    if !is_source_and_target_different_size {
+                                        continue;
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                return;
                             }
-                            ExistingPathDilemma::Overwrite(false) => {
-                                eprintln!("Overwrite current");
-                            }
-                            ExistingPathDilemma::Skip(true) => {
-                                eprintln!("Skip all");
-                                skip_all_flag = true;
-                                continue;
-                            }
-                            ExistingPathDilemma::Skip(false) => {
-                                eprintln!("Skip current");
-                                continue;
-                            }
-                            ExistingPathDilemma::ReplaceOlder(true) => {}
-                            ExistingPathDilemma::ReplaceOlder(false) => {}
-                            ExistingPathDilemma::ReplaceNewer(true) => {}
-                            ExistingPathDilemma::ReplaceNewer(false) => {}
-                            ExistingPathDilemma::DifferentSizes(true) => {}
-                            ExistingPathDilemma::DifferentSizes(false) => {}
-                        },
-                        Err(e) => {
-                            return;
                         }
                     }
                 }
+
                 set_dlg_visible_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME, true);
             }
             execute_process("rm", &["-f", &cp_job.target], None);

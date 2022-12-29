@@ -1,7 +1,4 @@
 use crate::cursive::view::{Nameable, Resizable};
-use std::fs::Permissions;
-use std::{collections::VecDeque, path::PathBuf, sync::mpsc::Sender};
-
 use crossbeam::channel::{
     self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
 };
@@ -18,6 +15,10 @@ use cursive::{
 use cursive_table_view::TableView;
 use futures::SinkExt;
 use once_cell::sync::Lazy;
+use std::os::unix::prelude::PermissionsExt;
+use std::time::SystemTime;
+use std::{cmp::Ordering, fs::Permissions};
+use std::{collections::VecDeque, path::PathBuf, sync::mpsc::Sender};
 
 use crate::{
     definitions::definitions::*,
@@ -779,11 +780,59 @@ fn show_error_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
         views::Layer::new(dlg),
     ));
 }
+#[cfg(target_os = "linux")]
+pub fn file_info_size(file: &str) -> Result<u64, std::io::Error> {
+    let metadata = std::fs::metadata(file)?;
+    Ok(metadata.len())
+}
+pub fn compare_paths_for_size(path_a: &str, path_b: &str) -> Ordering {
+    let ord = (|| {
+        let size_a = file_info_size(path_a).ok()?;
+        let size_b = file_info_size(path_a).ok()?;
+        Some(size_a.cmp(&size_b))
+    })()
+    .unwrap_or(Ordering::Equal);
+    #[cfg(unused)]
+    match file_info_size(path_a) {
+        Ok(size_a) => match file_info_size(path_b) {
+            Ok(size_b) => match size_a.partial_cmp(&size_b) {
+                Some(val) => val,
+                None => Ordering::Equal,
+            },
+            Err(e) => Ordering::Equal,
+        },
+        Err(e) => Ordering::Equal,
+    }
+    ord
+}
+#[cfg(target_os = "linux")]
+pub fn file_info_modification_time(file: &str) -> Result<SystemTime, std::io::Error> {
+    let metadata = std::fs::metadata(file)?;
+    metadata.modified()
+}
+pub fn compare_paths_for_modification_time(path_a: &str, path_b: &str) -> Ordering {
+    let ord = (|| {
+        let modification_time_a = file_info_modification_time(path_a).ok()?;
+        let modification_time_b = file_info_modification_time(path_b).ok()?;
+        modification_time_a.partial_cmp(&modification_time_b)
+    })()
+    .unwrap_or(Ordering::Equal);
 
+    #[cfg(unused)]
+    match file_info_modification_time(path_a) {
+        Ok(a_systime) => match file_info_modification_time(path_b) {
+            Ok(b_systime) => match a_systime.partial_cmp(&b_systime) {
+                Some(ord) => ord,
+                None => Ordering::Equal,
+            },
+            Err(e_b_systime) => Ordering::Equal, //++artie, not sure if that is the best solution, but for now it must do
+        },
+        Err(e_a_systime) => Ordering::Equal,
+    }
+    ord
+}
 #[cfg(target_os = "linux")]
 pub fn file_info(file: &str) -> Result<String, std::io::Error> {
-    use std::os::unix::prelude::PermissionsExt;
-
     let metadata = std::fs::metadata(file)?;
 
     let path = format!("Path: {}", file);
@@ -831,9 +880,4 @@ pub fn file_info(file: &str) -> Result<String, std::io::Error> {
         + &size_in_bytes
         + "\n"
         + &mode)
-}
-
-#[cfg(not(target_os = "linux"))]
-fn file_info(file: &str) -> Result<String, std::io::Error> {
-    std::io::Error
 }
