@@ -788,7 +788,7 @@ pub fn file_info_size(file: &str) -> Result<u64, std::io::Error> {
 pub fn compare_paths_for_size(path_a: &str, path_b: &str) -> Ordering {
     let ord = (|| {
         let size_a = file_info_size(path_a).ok()?;
-        let size_b = file_info_size(path_a).ok()?;
+        let size_b = file_info_size(path_b).ok()?;
         Some(size_a.cmp(&size_b))
     })()
     .unwrap_or(Ordering::Equal);

@@ -57,9 +57,10 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                     let is_target_newer_than_source = source_target == Ordering::Less;
                     let is_source_and_target_different_size =
                         compare_paths_for_size(&cp_job.source, &cp_job.target) != Ordering::Equal;
+
                     if !(replace_all_older_flag && is_target_older_than_source)
-                        || !(replace_all_newer_flag && is_target_newer_than_source)
-                        || !(replace_all_different_size_flag && is_source_and_target_different_size)
+                        && !(replace_all_newer_flag && is_target_newer_than_source)
+                        && !(replace_all_different_size_flag && is_source_and_target_different_size)
                     {
                         let (tx, rx) = std::sync::mpsc::channel();
                         set_dlg_visible_hlpr(cp_job.cb_sink.clone(), CPY_DLG_NAME, false);
