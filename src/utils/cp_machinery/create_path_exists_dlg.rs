@@ -82,7 +82,7 @@ pub fn create_path_exists_dlg(
         let apply_to_all = is_all_checked(s);
 
         if replace_newer_tx
-            .send(ExistingPathDilemma::ReplaceOlder(apply_to_all))
+            .send(ExistingPathDilemma::ReplaceNewer(apply_to_all))
             .is_err()
         {
             eprintln!("Err send: ExistingPathDilemma::Replace newer");
