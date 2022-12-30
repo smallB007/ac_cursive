@@ -1,19 +1,26 @@
 use crate::{
     definitions::definitions::CPY_DLG_NAME,
     utils::cp_machinery::{
-        cp_types::{copy_job, CopyJobs},
+        cp_types::{copy_job, CopyJobs, Cp_error, ExistingPathDilemma},
         cp_utils::{
-            close_cpy_dlg_hlpr, compare_paths_for_modification_time, compare_paths_for_size,
-            open_cpy_dlg_hlpr, set_dlg_visible_hlpr, show_and_update_cpy_dlg_with_total_count,
-            show_path_exists_dlg_hlpr, update_cpy_dlg_current_item_number_hlpr,
+            check_if_path_exists, close_cpy_dlg_hlpr, compare_paths_for_modification_time,
+            compare_paths_for_size, open_cpy_dlg_hlpr, set_dlg_visible_hlpr,
+            show_and_update_cpy_dlg_with_total_count, show_path_exists_dlg_hlpr,
+            update_cpy_dlg_current_item_number_hlpr,
             update_cpy_dlg_current_item_source_target_hlpr, update_cpy_dlg_progress,
-            ExistingPathDilemma,
         },
     },
+};
+use crossbeam::channel::{
+    self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
 };
 use cursive::CbSink;
 use nix::sys::signal::Signal;
 use once_cell::sync::Lazy;
+use signal_hook::consts::*;
+use signal_hook::iterator::Signals;
+use std::io::prelude::*;
+use std::process::{Command, Stdio};
 use std::{
     cmp::Ordering,
     collections::{HashMap, VecDeque},
@@ -24,13 +31,13 @@ use std::{
     },
     thread::JoinHandle,
 };
+
+use super::cp_types::InterruptComponents;
+
 pub fn init_cp_sequence(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) {
     server_thread(copy_jobs_feed_rx, cb_sink);
 }
 
-fn check_if_destination_path_exists(target: &str) -> bool {
-    std::path::Path::new(target).exists()
-}
 fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: Receiver<CopyJobs>) {
     eprintln!("[SERVER] Trying to get data");
     let mut overwrite_all_flag = false;
@@ -46,7 +53,7 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
         );
         for (inx, cp_job) in copy_jobs.into_iter().enumerate() {
             if !overwrite_all_flag {
-                if check_if_destination_path_exists(&cp_job.target) {
+                if check_if_path_exists(&cp_job.target) {
                     if skip_all_flag {
                         continue;
                     }
@@ -188,90 +195,6 @@ fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal:
     eprintln!("[COPYING] FINISHED");
 }
 
-use crate::utils::cp_machinery::cp_types::Cp_error;
-use crossbeam::channel::{
-    self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
-};
-use signal_hook::consts::*;
-use signal_hook::iterator::Signals;
-use std::io::prelude::*;
-use std::process::{Command, Stdio};
-#[cfg(unused)]
-fn cp_path_new(
-    //++artie, use execute process
-    job: copy_job,
-    interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>,
-) -> Cp_error {
-    let mut process = match Command::new("cp")
-        .arg("-f")
-        .arg(job.source)
-        .arg(job.target)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-    {
-        Err(why) => {
-            return Cp_error::CP_COULDNOT_START;
-        }
-        Ok(process) => process,
-    };
-
-    let timeout = tick(std::time::Duration::from_secs(2));
-    loop {
-        select! {
-            recv(interrupt_rx) -> interrupt_rx_result => {
-                println!("Received interrupt notification:{:?}",interrupt_rx_result);
-                let id = process.id();
-                match interrupt_rx_result
-                {
-                    Ok(nix::sys::signal::Signal::SIGSTOP)=>{
-                        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGSTOP);
-                        job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_continue_btn(s)}));
-                    },
-                    Ok(nix::sys::signal::Signal::SIGCONT)=>{
-                        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
-                        job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_pause_btn(s)}));
-                    },
-                    Ok(nix::sys::signal::Signal::SIGTERM)=>{
-                        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
-                        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
-                        break;
-                    },
-                    _=>{}
-                }
-              },
-            recv(timeout) -> _ => {
-                eprintln!("Checking if we finished the long task");
-                match process.try_wait() {
-                    Ok(Some(status)) =>{ eprintln!("exited with: {status}");break;},
-                    Ok(None) => {
-                        eprintln!("status not ready yet");
-                    }
-                    Err(e) => {eprintln!("error attempting to wait: {e}");break;},
-                }
-            }
-        }
-        eprintln!("AFTER SELECT>>>>>>>>>>>>>>>>>>>>>>");
-    }
-    eprintln!("AFTER LOOP>>>>>>>>>>>>>>>>>>>>>>");
-
-    {
-        let mut buf = String::new();
-        match process.stderr.unwrap().read_to_string(&mut buf) {
-            Err(why) => {
-                return Cp_error::CP_COULDNOT_READ_STDERR;
-            }
-            Ok(_) => {
-                if buf.len() != 0 {
-                    return Cp_error::CP_EXIT_STATUS_ERROR(buf);
-                }
-            }
-        }
-    }
-    Cp_error::CP_EXIT_STATUS_SUCCESS
-}
-
 fn create_watch_progress_thread(
     snd_progress_watch: Sender<()>,
     selected_item: String,
@@ -322,28 +245,13 @@ fn create_watch_progress_thread(
                     eprintln!("couldn't open: {e}");
                 }
             }
-
-            //{
-            //    match break_condition.try_lock() {
-            //        Ok(mutex_guard) => {
-            //            if *mutex_guard == true {
-            //                break;
-            //            }
-            //        }
-            //        Err(_) => {}
-            //    }
-            //}
             std::thread::sleep(std::time::Duration::from_millis(250));
         }
     });
 
     progress_watch_thread_handle
 }
-struct InterruptComponents<'a> {
-    job: copy_job,
-    interrupt_rx: &'a Crossbeam_Receiver<nix::sys::signal::Signal>,
-    break_condition: Arc<Mutex<bool>>,
-}
+
 fn execute_process(
     process: &str,
     args: &[&str],

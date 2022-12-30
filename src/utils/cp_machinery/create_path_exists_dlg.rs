@@ -8,7 +8,7 @@ use cursive::{
 
 use crate::definitions::definitions::{CPY_ALL_CHCKBX_NAME, PATH_EXISTS_DLG_NAME};
 
-use super::cp_utils::{close_dlg, ExistingPathDilemma};
+use super::{cp_types::ExistingPathDilemma, cp_utils::close_dlg};
 fn is_all_checked(s: &mut Cursive) -> bool {
     s.call_on_name(CPY_ALL_CHCKBX_NAME, |chckbx: &mut Checkbox| {
         chckbx.is_checked()

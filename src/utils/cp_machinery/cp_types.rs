@@ -1,3 +1,6 @@
+use crossbeam::channel::{
+    self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
+};
 use cursive::CbSink;
 use once_cell::sync::Lazy;
 use std::{
@@ -8,6 +11,7 @@ use std::{
     },
     thread::JoinHandle,
 };
+use thiserror::Error;
 
 #[derive(Clone)]
 pub struct copy_job {
@@ -17,14 +21,8 @@ pub struct copy_job {
     pub inx: usize, //++artie, not needed
 }
 
-pub type CopyJobs = VecDeque<copy_job>;
-#[cfg(unused)]
-pub static GLOBAL_DATA: Lazy<Mutex<CopyJobs>> = Lazy::new(|| {
-    let m = CopyJobs::new();
-    Mutex::new(m)
-});
+pub type CopyJobs = VecDeque<copy_job>; //++artie, Vec?
 
-use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum Cp_error {
     #[error("Source does not exist")]
@@ -41,4 +39,18 @@ pub enum Cp_error {
     CP_EXIT_STATUS_ERROR(String),
     #[error("")]
     CP_EXIT_STATUS_SUCCESS,
+}
+
+pub struct InterruptComponents<'a> {
+    pub job: copy_job,
+    pub interrupt_rx: &'a Crossbeam_Receiver<nix::sys::signal::Signal>,
+    pub break_condition: Arc<Mutex<bool>>,
+}
+
+pub enum ExistingPathDilemma {
+    Skip(bool /*all */),
+    Overwrite(bool),
+    ReplaceOlder(bool),
+    ReplaceNewer(bool),
+    DifferentSizes(bool),
 }
