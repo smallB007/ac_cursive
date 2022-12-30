@@ -17,7 +17,7 @@ interprocess = "*"
 notify = { version = "5.0.0" }
 notify-debouncer-mini = { version = "0.2.0" }
 futures = "0.3"
-
+clia-local-offset = "0.1.0"                       #because time::local_offset_at is unusable...
 time = { version = "0.3", features = ["macros"] }
 walkdir = "2"
 #cursive = "*"

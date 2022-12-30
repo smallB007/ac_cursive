@@ -102,13 +102,16 @@ pub const FORMAT: &[time::format_description::FormatItem<'_>] = time::macros::fo
     "[day]-[month repr:short]-[year repr:last_two] [hour]:[minute]"
 );
 pub fn pretty_print_system_time(t: SystemTime) -> String {
-    return String::from("Helloooo");
+    //return String::from("Helloooo");
     // readableBytes(21111024);
     let mut res = Vec::new(); //++artie, with_capacity
 
     let utc = time::OffsetDateTime::UNIX_EPOCH
         + time::Duration::try_from(t.duration_since(std::time::UNIX_EPOCH).unwrap()).unwrap();
+    let offset = clia_local_offset::current_local_offset().expect("Can not get local offset!");
+    #[cfg(panics)]
     let local = utc.to_offset(time::UtcOffset::local_offset_at(utc).unwrap());
+    let local = utc.to_offset(offset);
     local
         .format_into(
             //&mut std::io::stdout().lock(),
