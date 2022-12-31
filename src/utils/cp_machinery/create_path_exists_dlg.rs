@@ -1,12 +1,15 @@
 use std::sync::mpsc::Sender;
 
 use cursive::{
-    view::Nameable,
-    views::{Checkbox, Dialog, DummyView, LinearLayout, NamedView, TextView},
+    view::{Nameable, Resizable},
+    views::{Checkbox, Dialog, DummyView, LinearLayout, NamedView, ResizedView, TextView},
     Cursive,
 };
 
-use crate::definitions::definitions::{CPY_ALL_CHCKBX_NAME, PATH_EXISTS_DLG_NAME};
+use crate::{
+    custom_views::horizontal_line::HorizontalLine,
+    definitions::definitions::{CPY_ALL_CHCKBX_NAME, PATH_EXISTS_DLG_NAME},
+};
 
 use super::{cp_types::ExistingPathDilemma, cp_utils::close_dlg};
 fn is_all_checked(s: &mut Cursive) -> bool {
@@ -19,7 +22,8 @@ pub fn create_path_exists_dlg(
     source: String,
     target: String,
     response_tx: Sender<ExistingPathDilemma>,
-) -> NamedView<Dialog> {
+) -> NamedView<ResizedView<Dialog>> {
+    let max_width = 80_usize;
     let skip_tx = response_tx.clone();
     let overwrite_tx = response_tx.clone();
     let replace_older_tx = response_tx.clone();
@@ -39,6 +43,7 @@ pub fn create_path_exists_dlg(
                     .child(TextView::new(target)),
             )
             .child(DummyView)
+            .child(HorizontalLine::new("─", max_width))
             .child(
                 LinearLayout::horizontal()
                     .child(Checkbox::new().with_name(CPY_ALL_CHCKBX_NAME))
@@ -101,6 +106,7 @@ pub fn create_path_exists_dlg(
         close_dlg(s, PATH_EXISTS_DLG_NAME);
     })
     .title("Path exists")
+    .max_width(max_width)
     .with_name(PATH_EXISTS_DLG_NAME);
     dlg
 }

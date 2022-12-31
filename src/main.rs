@@ -23,6 +23,7 @@ use rand::Rng;
 // ----------------------------------------------------------------------------
 use cursive_table_view::{TableView, TableViewItem};
 
+mod custom_views;
 mod definitions;
 mod tui_fn;
 mod utils;
