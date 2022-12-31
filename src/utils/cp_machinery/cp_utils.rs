@@ -1,6 +1,7 @@
 use super::{
     cp_types::ExistingPathDilemma, create_cp_dlg::create_cp_dlg,
     create_path_exists_dlg::create_path_exists_dlg,
+    no_paths_selected_dlg::show_no_paths_selected_dlg,
 };
 use crate::cursive::view::{Nameable, Resizable};
 use crate::utils::cp_machinery::copy::init_cp_sequence;
@@ -424,7 +425,10 @@ pub fn update_cpy_dlg_with_new_items(s: &mut Cursive, total_items: u64) {
 
 pub fn f5_handler(s: &mut Cursive) {
     let cp_jobs = prepare_cp_jobs(s);
-
+    if cp_jobs.is_empty() {
+        show_no_paths_selected_dlg(s);
+        return;
+    }
     if s.user_data::<std::sync::mpsc::Sender<CopyJobs>>().is_some() {
         let tx_cp_jobs: &mut std::sync::mpsc::Sender<CopyJobs> = s.user_data().unwrap();
         show_and_update_cpy_dlg_with_total_count(cp_jobs[0].cb_sink.clone(), cp_jobs.len() as u64);
@@ -475,7 +479,7 @@ pub fn show_path_exists_dlg(
     show_error_themed_view(s, dlg);
 }
 
-fn show_error_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
+pub fn show_error_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
     let theme = Lazy::new(|| {
         eprintln!("Lazy theme");
         let mut theme = Theme::default();
@@ -485,6 +489,25 @@ fn show_error_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
         theme.palette[theme::PaletteColor::TitlePrimary] =
             theme::Color::Light(theme::BaseColor::Yellow);
         theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Green);
+
+        theme
+    });
+
+    s.add_layer(views::ThemedView::new(
+        theme.clone(),
+        views::Layer::new(dlg),
+    ));
+}
+pub fn show_info_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
+    let theme = Lazy::new(|| {
+        eprintln!("Lazy theme");
+        let mut theme = Theme::default();
+
+        theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Cyan);
+        theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::White);
+        theme.palette[theme::PaletteColor::TitlePrimary] =
+            theme::Color::Light(theme::BaseColor::Black);
+        theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Black);
 
         theme
     });

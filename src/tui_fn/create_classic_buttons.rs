@@ -150,6 +150,8 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
     let copy_layout = LinearLayout::horizontal()
         .child(TextView::new("F5").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Copy ]", |s| {
+            s.on_event(cursive::event::Event::Key(cursive::event::Key::Up)); //hehe, this to bring the focus back where it was
+
             f5_handler(s);
         }));
     let copy_layout = copy_layout.with_name("copy_layout");
