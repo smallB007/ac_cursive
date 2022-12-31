@@ -34,13 +34,13 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
     }
 }
 
-pub fn get_active_table_first_selected_item(s: &mut Cursive, active_table_name: &str) -> String {
+pub fn get_active_table_focused_item(s: &mut Cursive, active_table_name: &str) -> String {
     //++artie refactor, return ref to direntry
     let selected_item = s
         .call_on_name(
             active_table_name,
             |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
-                table.get_mut().get_selected_item().name.clone()
+                table.get_mut().get_focused_item().name.clone()
             },
         )
         .unwrap();

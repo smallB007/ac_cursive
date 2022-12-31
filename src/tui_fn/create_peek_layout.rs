@@ -2,7 +2,7 @@ use crate::tui_fn::create_classic_buttons::create_classic_buttons;
 use crate::{
     tui_fn::{create_panel::create_panel, create_view_panel::create_view_panel},
     utils::common_utils::{
-        get_active_table_first_selected_index, get_active_table_first_selected_item,
+        get_active_table_first_selected_index, get_active_table_focused_item,
         get_active_table_name, select_index,
     },
 };
@@ -38,7 +38,7 @@ pub fn create_peek_layout(dir: &str, path: &str) -> LinearLayout {
 
 fn peek_cb(s: &mut Cursive, row: usize, col: usize) {
     //eprintln!("peek_cb: row: {}, col: {}", row, col);
-    let selected_path = get_active_table_first_selected_item(s, "PeekPanelDir_tableview");
+    let selected_path = get_active_table_focused_item(s, "PeekPanelDir_tableview");
     //eprintln!("selected_path:{}", selected_path);
     s.call_on_name(
         "PeekLinearLayout",

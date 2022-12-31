@@ -83,7 +83,7 @@ pub fn create_panel(
                 &table_view_clone,
                 |table: &mut TableView<DirView, BasicColumn>| {
                     //table.remove_item(index);
-                    table.get_selected_item().name.clone()
+                    table.get_focused_item().name.clone()
                 },
             )
             .unwrap();

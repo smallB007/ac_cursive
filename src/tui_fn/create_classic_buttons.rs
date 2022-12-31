@@ -15,7 +15,7 @@ use crate::{
     definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME},
     utils::{
         common_utils::{
-            copy_file, get_active_table_first_selected_index, get_active_table_first_selected_item,
+            copy_file, get_active_table_first_selected_index, get_active_table_focused_item,
             get_active_table_name, get_current_path_from_dialog_name, os_string_to_lossy_string,
             select_index,
         },
@@ -56,7 +56,7 @@ use crate::{
 };
 fn prepare_peek_view(s: &mut Cursive) {
     let active_table_name = get_active_table_name(s);
-    let selected_item = get_active_table_first_selected_item(s, &active_table_name);
+    let selected_item = get_active_table_focused_item(s, &active_table_name);
     let selected_item_inx = get_active_table_first_selected_index(s, &active_table_name);
     let dialog_name = LEFT_PANEL_NAME;
     let current_path = get_current_path_from_dialog_name(s, String::from(dialog_name)); //++artie, &str
@@ -68,7 +68,7 @@ fn prepare_peek_view(s: &mut Cursive) {
 }
 fn prepare_info_view(s: &mut Cursive) {
     let active_table_name = get_active_table_name(s);
-    let selected_item = get_active_table_first_selected_item(s, &active_table_name);
+    let selected_item = get_active_table_focused_item(s, &active_table_name);
     let selected_item_inx = get_active_table_first_selected_index(s, &active_table_name);
     let dialog_name = LEFT_PANEL_NAME;
     let current_path = get_current_path_from_dialog_name(s, String::from(dialog_name)); //++artie, &str
@@ -116,7 +116,7 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         .child(TextView::new("F3").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ View/Edit ]", |s| {
             let active_table_name = get_active_table_name(s);
-            let selected_item = get_active_table_first_selected_item(s, &active_table_name);
+            let selected_item = get_active_table_focused_item(s, &active_table_name);
             let view_layout = create_view_layout(&selected_item);
             s.add_fullscreen_layer(view_layout);
         }));
