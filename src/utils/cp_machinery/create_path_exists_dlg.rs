@@ -23,7 +23,7 @@ pub fn create_path_exists_dlg(
     target: String,
     response_tx: Sender<ExistingPathDilemma>,
 ) -> NamedView<ResizedView<Dialog>> {
-    let max_width = 80_usize;
+    let max_width = 81_usize;
     let skip_tx = response_tx.clone();
     let overwrite_tx = response_tx.clone();
     let replace_older_tx = response_tx.clone();
@@ -51,7 +51,7 @@ pub fn create_path_exists_dlg(
             )
             .child(DummyView),
     )
-    .button("Skip", move |s| {
+    .button_raw("[ Skip ]", move |s| {
         let apply_to_all = is_all_checked(s);
         if skip_tx
             .send(ExistingPathDilemma::Skip(apply_to_all))
@@ -61,7 +61,7 @@ pub fn create_path_exists_dlg(
         }
         close_dlg(s, PATH_EXISTS_DLG_NAME);
     })
-    .button("Overwrite", move |s| {
+    .button_raw("[ Overwrite ]", move |s| {
         let apply_to_all = is_all_checked(s);
 
         if overwrite_tx
@@ -72,7 +72,7 @@ pub fn create_path_exists_dlg(
         }
         close_dlg(s, PATH_EXISTS_DLG_NAME);
     })
-    .button("Replace older", move |s| {
+    .button_raw("[ Replace older ]", move |s| {
         let apply_to_all = is_all_checked(s);
 
         if replace_older_tx
@@ -83,7 +83,7 @@ pub fn create_path_exists_dlg(
         }
         close_dlg(s, PATH_EXISTS_DLG_NAME);
     })
-    .button("Replace newer", move |s| {
+    .button_raw("[ Replace newer ]", move |s| {
         let apply_to_all = is_all_checked(s);
 
         if replace_newer_tx
@@ -94,7 +94,7 @@ pub fn create_path_exists_dlg(
         }
         close_dlg(s, PATH_EXISTS_DLG_NAME);
     })
-    .button("Different size", move |s| {
+    .button_raw("[ Different size ]", move |s| {
         let apply_to_all = is_all_checked(s);
 
         if different_size_tx
