@@ -23,8 +23,8 @@ pub fn create_path_exists_dlg(
     source: String,
     target: String,
     response_tx: Sender<ExistingPathDilemma>,
-) -> NamedView<ResizedView<Dialog>> {
-    let max_width = 81_usize;
+) -> NamedView<Dialog> {
+    let max_width = 1500_usize; //++artie, long to cover every? ;) possible dlg length
     let skip_tx = response_tx.clone();
     let overwrite_tx = response_tx.clone();
     let replace_older_tx = response_tx.clone();
@@ -107,7 +107,7 @@ pub fn create_path_exists_dlg(
         close_dlg(s, PATH_EXISTS_DLG_NAME);
     })
     .title("Path exists")
-    .max_width(max_width)
+    //.max_width(max_width)
     .with_name(PATH_EXISTS_DLG_NAME);
     dlg
 }

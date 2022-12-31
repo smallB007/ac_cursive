@@ -552,11 +552,11 @@ pub fn file_info(file: &str) -> Result<String, std::io::Error> {
         }
     };
 
-    let size_in_bytes = format!("Size in bytes: {}B", metadata.len());
+    let size_in_bytes = format!("Size in bytes: {:>9}", metadata.len());
 
     let permissions = metadata.permissions();
     let mode = format!(
-        "mode: {}",
+        "mode: {:>22}",
         <Permissions as PermissionsExt>::mode(&permissions)
     );
 
