@@ -45,6 +45,7 @@ pub fn create_path_exists_dlg(
             )
             .child(DummyView)
             .child(HorizontalLine::new("─", max_width))
+            //.child(HorizontalLine::new("_", max_width))//++artie, thin line
             .child(
                 LinearLayout::horizontal()
                     .child(Checkbox::new().with_name(CPY_ALL_CHCKBX_NAME))
