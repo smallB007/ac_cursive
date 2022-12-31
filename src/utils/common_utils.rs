@@ -34,6 +34,28 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
     }
 }
 
+pub fn get_active_table_focused_item_with_inx(
+    s: &mut Cursive,
+    active_table_name: &str,
+) -> (usize, String) {
+    //++artie refactor, return ref to direntry
+    let (inx, selected_item) = s
+        .call_on_name(
+            active_table_name,
+            |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
+                let path_buf = table.get_mut().get_focused_item().name.clone();
+                (
+                    table.get_mut().item().unwrap(),
+                    //table.get_mut().get_focused_item().name.clone(),//++artie, this causes panic ehhehe
+                    path_buf,
+                )
+            },
+        )
+        .unwrap();
+
+    (inx, pathbuf_to_lossy_string(&selected_item))
+}
+
 pub fn get_active_table_focused_item(s: &mut Cursive, active_table_name: &str) -> String {
     //++artie refactor, return ref to direntry
     let selected_item = s
