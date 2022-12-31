@@ -320,7 +320,7 @@ pub fn close_cpy_dlg(s: &mut Cursive) {
     }
 }
 
-fn prepare_cp_jobs(s: &mut Cursive) -> CopyJobs {
+fn prepare_cp_jobs(s: &mut Cursive) -> Option<CopyJobs> {
     let ((src_table, _), (_, dest_panel)) = if get_active_table_name(s) == LEFT_TABLE_VIEW_NAME {
         (
             //++artie only one item neede to return
@@ -357,11 +357,12 @@ fn prepare_cp_jobs(s: &mut Cursive) -> CopyJobs {
             }
             None => {
                 eprintln!("Couldn't copy {selected_item}");
+                return None;
             }
         }
     }
 
-    copying_jobs
+    Some(copying_jobs)
 }
 
 pub fn open_cpy_dlg_hlpr(cb_sink: CbSink) -> Crossbeam_Receiver<nix::sys::signal::Signal> {
@@ -428,11 +429,14 @@ pub fn update_cpy_dlg_with_new_items(s: &mut Cursive, total_items: u64) {
 }
 
 pub fn f5_handler(s: &mut Cursive) {
-    let cp_jobs = prepare_cp_jobs(s);
-    if cp_jobs.is_empty() {
-        show_no_paths_selected_dlg(s);
-        return;
-    }
+    let cp_jobs = match prepare_cp_jobs(s) {
+        None => {
+            show_no_paths_selected_dlg(s);
+            return;
+        }
+        Some(cp_jobs) => cp_jobs,
+    };
+
     if s.user_data::<std::sync::mpsc::Sender<CopyJobs>>().is_some() {
         let tx_cp_jobs: &mut std::sync::mpsc::Sender<CopyJobs> = s.user_data().unwrap();
         show_and_update_cpy_dlg_with_total_count(cp_jobs[0].cb_sink.clone(), cp_jobs.len() as u64);
