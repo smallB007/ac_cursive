@@ -334,6 +334,7 @@ fn prepare_cp_jobs(s: &mut Cursive) -> CopyJobs {
         )
     };
     let selected_items = get_active_table_selected_items(s, src_table, true);
+
     let dest_path = get_current_path_from_dialog_name(s, String::from(dest_panel));
 
     let mut copying_jobs = CopyJobs::new();

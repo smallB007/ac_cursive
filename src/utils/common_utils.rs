@@ -78,9 +78,8 @@ pub fn get_active_table_first_selected_index(s: &mut Cursive, active_table_name:
     let selected_index = s
         .call_on_name(
             active_table_name,
-            |table: &mut NamedView<TableView<DirView, BasicColumn>>| match table.get_mut().item() {
-                Some(inx) => inx,
-                None => 0,
+            |table: &mut NamedView<TableView<DirView, BasicColumn>>| {
+                table.get_mut().item().unwrap() //++artie, can't ;) fail as it results only some
             },
         )
         .unwrap();
