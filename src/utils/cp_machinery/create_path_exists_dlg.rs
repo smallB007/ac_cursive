@@ -1,6 +1,7 @@
 use std::sync::mpsc::Sender;
 
 use cursive::{
+    theme::ColorStyle,
     view::{Nameable, Resizable},
     views::{Checkbox, Dialog, DummyView, LinearLayout, NamedView, ResizedView, TextView},
     Cursive,
@@ -33,13 +34,13 @@ pub fn create_path_exists_dlg(
         LinearLayout::vertical()
             .child(
                 LinearLayout::vertical()
-                    .child(TextView::new("Source:"))
+                    .child(TextView::new("Source").style(ColorStyle::title_primary()))
                     .child(TextView::new(source)),
             )
             .child(DummyView)
             .child(
                 LinearLayout::vertical()
-                    .child(TextView::new("Target:"))
+                    .child(TextView::new("Target:").style(ColorStyle::title_primary()))
                     .child(TextView::new(target)),
             )
             .child(DummyView)

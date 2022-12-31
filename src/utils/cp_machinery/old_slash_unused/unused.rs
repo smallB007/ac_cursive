@@ -223,3 +223,95 @@ pub fn f5_handler_interprocess(s: &mut Cursive) {
     });
     */
 }
+
+#[cfg(unused)]
+fn copying_engine(
+    selected_item: &str,
+    selected_item_n: u64,
+    total_items: u64,
+    full_dest_path: &str,
+    cb_sink: CbSink,
+) {
+    std::thread::scope(|s| {
+        let selected_item_clone = String::from(selected_item);
+        let selected_item_len = match PathBuf::from(selected_item).metadata() {
+            Ok(metadata) => metadata.len(),
+            Err(e) => {
+                eprintln!("Couldn't get len for path: {}", selected_item);
+                0
+            }
+        };
+        let full_dest_path_clone = String::from(full_dest_path);
+        let full_dest_path_clone_2 = String::from(full_dest_path);
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        use std::sync::{Arc, Condvar, Mutex};
+        use std::thread;
+
+        let pair = Arc::new((Mutex::new(false), Condvar::new()));
+        let pair2 = Arc::clone(&pair);
+        //let cb_sink_clone = cb_sink.clone();
+        // Inside of our lock, spawn a new thread, and then wait for it to start.
+        let _handle_cpy = s.spawn(move err_file_().unwrap();
+            *started = true;
+
+            // We notify the condvar that the value has changed.
+            cvar.notify_one();
+            drop(started); //++artie, unbelievable, manual mem management...
+            match copy_file(&selected_item_clone, &full_dest_path_clone) {
+                Ok(_) => {
+                    eprintln!("Copied");
+                }
+                Err(e) => {
+                    eprintln!("couldn't copy: {e}");
+                }
+            }
+            tx.send(true);
+        });
+
+        // Wait for the thread to start up.
+        let (lock, cvar) = &*pair;
+        let mut started = lock.lock().unwrap();
+        while !*started {
+            started = cvar.wait(started).unwrap();
+        }
+        drop(started); //++artie, unbelievable, manual mem management...
+
+        println!("Copying thread started. Proceeding to spawn watch thread.");
+        let _handle_read = s.spawn(move || loop {
+            match rx.try_recv() {
+                Ok(res) => {
+                    if res {
+                        //eprintln!("Received end of copying msg");
+                        break;
+                    }
+                }
+                Err(e) => {
+                    //eprintln!("Receiving error: {}", e);
+                }
+            }
+            let full_dest_path_clone_2_clone = full_dest_path_clone_2.clone();
+            match std::fs::File::open(full_dest_path_clone_2_clone) {
+                Ok(f) => {
+                    let len = f.metadata().unwrap().len();
+                    //eprintln!("opened, len: {len}");
+                    let percent = (len as f64 / selected_item_len as f64) * 100_f64;
+                    cb_sink
+                        .send(Box::new(move |siv| {
+                            update_cpy_dlg_progress(
+                                siv,
+                                selected_item_n,
+                                total_items,
+                                percent as u64,
+                            )
+                        }))
+                        .unwrap();
+                }
+                Err(e) => {
+                    eprintln!("couldn't open: {e}");
+                }
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis(250));
+        });
+    });
+}
