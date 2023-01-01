@@ -6,10 +6,12 @@ use crate::{
     utils::common_utils::get_current_path_from_dialog_name,
 };
 use cursive::{
+    view::ViewWrapper,
     views::{Dialog, HideableView, NamedView, ResizedView},
     Cursive,
 };
 use cursive_table_view::TableView;
+use notify::RecommendedWatcher;
 
 use super::create_table::{BasicColumn, DirView};
 
@@ -66,7 +68,7 @@ pub fn create_panel(
     name: &str,
     dir: &str,
     cb_peek: Option<fn(&mut Cursive, usize, usize)>,
-) -> ResizedView<NamedView<Dialog>> {
+) -> PanelWithWatcher {
     let table_view_name = create_name_for_table_view(name);
     let table_view_clone = table_view_name.clone();
     let dialog_name = String::from(name);
@@ -104,5 +106,29 @@ pub fn create_panel(
         .with_name(name)
         .full_screen();
 
-    named_v
+    PanelWithWatcher {
+        view: named_v,
+        watcher: None,
+    }
+}
+
+pub struct PanelWithWatcher {
+    view: ResizedView<NamedView<Dialog>>,
+    watcher: Option<RecommendedWatcher>,
+}
+
+impl ViewWrapper for PanelWithWatcher {
+    type V = ResizedView<NamedView<Dialog>>;
+    fn with_view<F, R>(&self, f: F) -> Option<R>
+    where
+        F: FnOnce(&Self::V) -> R,
+    {
+        Some(f(&self.view))
+    }
+    fn with_view_mut<F, R>(&mut self, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut Self::V) -> R,
+    {
+        Some(f(&mut self.view))
+    }
 }

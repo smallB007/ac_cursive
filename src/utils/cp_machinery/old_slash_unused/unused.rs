@@ -315,3 +315,9 @@ fn copying_engine(
         });
     });
 }
+
+#[cfg(unused)]
+pub fn copy_file(src: &str, dest: &str) -> std::io::Result<()> {
+    std::fs::copy(src, dest)?;
+    Ok(())
+}

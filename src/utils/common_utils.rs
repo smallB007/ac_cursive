@@ -1,6 +1,14 @@
-use std::{ffi::OsStr, fs::DirEntry, path::PathBuf, time::SystemTime};
-
 use cursive::Cursive;
+
+use std::{
+    ffi::OsStr,
+    fs::DirEntry,
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
+
+use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use notify_debouncer_mini::new_debouncer_opt;
 
 use crate::definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME};
 use crate::tui_fn::create_table::{create_table, BasicColumn, DirView};
@@ -181,15 +189,31 @@ pub fn get_current_path_from_dialog_name(s: &mut Cursive, dialog_name: String) -
     current_path
 }
 
-pub fn copy_file(src: &str, dest: &str) -> std::io::Result<()> {
-    std::fs::copy(src, dest)?;
-    Ok(())
-}
-
 pub fn pathbuf_to_lossy_string(path_buf: &PathBuf) -> String {
     path_buf.as_os_str().to_string_lossy().to_string()
 }
 
 pub fn os_string_to_lossy_string(os_string: &OsStr) -> String {
     os_string.to_string_lossy().to_string()
+}
+
+pub fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    // Automatically select the best implementation for your platform.
+    // You can also access each implementation directly e.g. INotifyWatcher.
+    let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
+
+    // Add a path to be watched. All files and directories at that path and
+    // below will be monitored for changes.
+    watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
+
+    for res in rx.recv() {
+        match res {
+            Ok(event) => println!("changed: {:?}", event),
+            Err(e) => println!("watch error: {:?}", e),
+        }
+    }
+
+    Ok(())
 }

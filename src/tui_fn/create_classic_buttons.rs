@@ -15,7 +15,7 @@ use crate::{
     definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME},
     utils::{
         common_utils::{
-            copy_file, get_active_table_first_selected_index, get_active_table_focused_item,
+            get_active_table_first_selected_index, get_active_table_focused_item,
             get_active_table_name, get_current_path_from_dialog_name, os_string_to_lossy_string,
             select_index,
         },
@@ -41,8 +41,6 @@ use cursive::{
 };
 use cursive_table_view::TableView;
 //use futures::channel::mpsc::Sender;
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
-use notify_debouncer_mini::new_debouncer_opt;
 
 use crate::{
     definitions::definitions::{LEFT_PANEL_NAME, RIGHT_PANEL_NAME},
@@ -77,26 +75,6 @@ fn prepare_info_view(s: &mut Cursive) {
     s.add_fullscreen_layer(peek_layout);
     /*In order for table to be "searchable" it must be added to cursive */
     select_index(s, "InfoPanelDir_tableview", selected_item_inx);
-}
-fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
-    let (tx, rx) = std::sync::mpsc::channel();
-
-    // Automatically select the best implementation for your platform.
-    // You can also access each implementation directly e.g. INotifyWatcher.
-    let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
-
-    // Add a path to be watched. All files and directories at that path and
-    // below will be monitored for changes.
-    watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
-
-    for res in rx.recv() {
-        match res {
-            Ok(event) => println!("changed: {:?}", event),
-            Err(e) => println!("watch error: {:?}", e),
-        }
-    }
-
-    Ok(())
 }
 
 pub fn create_classic_buttons() -> ResizedView<StackView> {
