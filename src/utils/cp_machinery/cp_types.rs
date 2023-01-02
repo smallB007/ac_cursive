@@ -58,5 +58,5 @@ pub enum ExistingPathDilemma {
 #[derive(Clone)]
 pub struct UpdateInfo {
     pub table_view_name: String,
-    pub path: String,
+    //pub path: String,
 }

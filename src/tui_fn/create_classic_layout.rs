@@ -5,6 +5,7 @@ use crate::{
         LEFT_PANEL_NAME, LEFT_TABLE_VIEW_NAME, RIGHT_PANEL_NAME, RIGHT_TABLE_VIEW_NAME,
     },
     tui_fn::create_panel::{create_panel, update_table},
+    utils::common_utils::get_current_path_from_dialog_name,
 };
 use crate::{
     tui_fn::create_classic_buttons::create_classic_buttons, utils::common_utils::init_watcher,
@@ -34,7 +35,8 @@ pub fn create_classic_layout(left_dir: &str, right_dir: &str, cb_sink: CbSink) -
                 for info in rx_change_in_dir_detected.iter() {
                     if cb_sink
                         .send(Box::new(move |s| {
-                            update_table(s, &info.path, &info.table_view_name);
+                            let path = get_current_path_from_dialog_name(s, LEFT_PANEL_NAME);
+                            update_table(s, &path, &info.table_view_name);
                         }))
                         .is_err()
                     {
@@ -64,7 +66,9 @@ pub fn create_classic_layout(left_dir: &str, right_dir: &str, cb_sink: CbSink) -
                     //++artie, do async on this feature
                     if cb_sink_clone
                         .send(Box::new(move |s| {
-                            update_table(s, &info.path, &info.table_view_name);
+                            let path = get_current_path_from_dialog_name(s, RIGHT_PANEL_NAME);
+
+                            update_table(s, &path, &info.table_view_name);
                         }))
                         .is_err()
                     {

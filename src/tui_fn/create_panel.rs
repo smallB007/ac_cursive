@@ -43,20 +43,22 @@ fn traverse_up(
     watcher: &mut Option<Rc<RefCell<INotifyWatcher>>>,
 ) {
     /*Third, combine them to form full path */
-    let current_path = get_current_path_from_dialog_name(s, dialog_name.clone());
+    let current_path = get_current_path_from_dialog_name(s, &dialog_name);
     let old_path = current_path.clone();
     let mut full_path = PathBuf::from(current_path);
     full_path.pop();
-    let new_path = pathbuf_to_lossy_string(&full_path);
-    if watcher.is_some() {
-        let watcher = watcher.as_mut().unwrap();
-        update_watcher(watcher.clone(), old_path, new_path);
-    }
     if full_path.is_dir() {
-        let new_dialog_title = full_path.into_os_string().into_string().unwrap();
-        update_table(s, &new_dialog_title, &table_view_name);
+        let new_path = pathbuf_to_lossy_string(&full_path);
+        let new_path_clone = new_path.clone();
+        if watcher.is_some() {
+            let watcher = watcher.as_mut().unwrap();
+            if update_watcher(watcher.clone(), old_path, new_path).is_err() {
+                eprintln!("Err: if update_watcher");
+            }
+        }
+        update_table(s, &new_path_clone, &table_view_name);
         s.call_on_name(&dialog_name, |dlg: &mut Dialog| {
-            dlg.set_title(new_dialog_title);
+            dlg.set_title(new_path_clone);
         });
     }
 }
@@ -67,23 +69,29 @@ fn traverse_down(
     selected_item: PathBuf,
     watcher: &mut Option<Rc<RefCell<INotifyWatcher>>>,
 ) {
-    /*Third, combine them to form full path */
-    let current_path = PathBuf::from(get_current_path_from_dialog_name(s, dialog_name.clone()));
-
+    let current_path = PathBuf::from(get_current_path_from_dialog_name(s, &dialog_name));
+    let old_path = pathbuf_to_lossy_string(&current_path);
     let full_path = current_path.join(&selected_item);
 
     if full_path.is_dir() {
-        let new_dialog_title = full_path.into_os_string().into_string().unwrap();
+        let new_path = pathbuf_to_lossy_string(&full_path);
+        let new_path_clone = new_path.clone();
+        if watcher.is_some() {
+            let watcher = watcher.as_mut().unwrap();
+            if update_watcher(watcher.clone(), old_path, new_path).is_err() {
+                eprintln!("Err: if update_watcher");
+            }
+        }
         s.call_on_name(
             &table_view_name,
             |table: &mut TableView<DirView, BasicColumn>| {
-                let (longest_path, items) = prepare_items_for_table_view(&new_dialog_title);
+                let (longest_path, items) = prepare_items_for_table_view(&new_path_clone);
                 //table.remove_item(index);
                 table.set_items(items);
             },
         );
         s.call_on_name(&dialog_name, |s: &mut Dialog| {
-            s.set_title(new_dialog_title);
+            s.set_title(new_path_clone);
         });
     }
 }

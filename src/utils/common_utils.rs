@@ -182,10 +182,10 @@ pub fn readableBytes(bytes: usize) -> String {
     }
 }
 
-pub fn get_current_path_from_dialog_name(s: &mut Cursive, dialog_name: String) -> String {
+pub fn get_current_path_from_dialog_name(s: &mut Cursive, dialog_name: &str) -> String {
     /*First get the dialog's title which is first path of dir */
     let current_path = s
-        .call_on_name(&dialog_name, |s: &mut Dialog| {
+        .call_on_name(dialog_name, |s: &mut Dialog| {
             let title = String::from(s.get_title());
             title
         })
@@ -253,7 +253,7 @@ pub fn init_watcher(
                     if tx_change_in_dir_detected
                         .send(UpdateInfo {
                             table_view_name: table_view_name_clone,
-                            path: path_clone,
+                            //path: path_clone,
                         })
                         .is_err()
                     {

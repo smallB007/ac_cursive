@@ -57,7 +57,7 @@ fn prepare_peek_view(s: &mut Cursive) {
     let selected_item = get_active_table_focused_item(s, &active_table_name);
     let selected_item_inx = get_active_table_first_selected_index(s, &active_table_name);
     let dialog_name = LEFT_PANEL_NAME;
-    let current_path = get_current_path_from_dialog_name(s, String::from(dialog_name)); //++artie, &str
+    let current_path = get_current_path_from_dialog_name(s, dialog_name); //++artie, &str
     let peek_layout = create_peek_layout(&current_path, &selected_item);
 
     s.add_fullscreen_layer(peek_layout);
@@ -69,7 +69,7 @@ fn prepare_info_view(s: &mut Cursive) {
     let selected_item = get_active_table_focused_item(s, &active_table_name);
     let selected_item_inx = get_active_table_first_selected_index(s, &active_table_name);
     let dialog_name = LEFT_PANEL_NAME;
-    let current_path = get_current_path_from_dialog_name(s, String::from(dialog_name)); //++artie, &str
+    let current_path = get_current_path_from_dialog_name(s, dialog_name); //++artie, &str
     let peek_layout = create_info_layout(&current_path, &selected_item);
 
     s.add_fullscreen_layer(peek_layout);
