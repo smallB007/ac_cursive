@@ -19,7 +19,7 @@ pub fn create_peek_layout(dir: &str, path: &str) -> LinearLayout {
 
     layout_panes
         .get_mut()
-        .add_child(create_panel("PeekPanelDir", dir, Some(peek_cb)));
+        .add_child(create_panel("PeekPanelDir", dir, Some(peek_cb), None));
     layout_panes
         .get_mut()
         .add_child(create_view_panel("PeekPanelPath", path, path));

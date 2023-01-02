@@ -1,5 +1,6 @@
-use cursive::{align::HAlign, views::Button};
+use cursive::{align::HAlign, view::ViewWrapper, views::Button};
 use cursive_table_view::{TableView, TableViewItem};
+use notify::RecommendedWatcher;
 use rand::Rng;
 use std::{any::Any, cmp::Ordering, fmt::Debug, path::PathBuf, rc::Rc, time::SystemTime};
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -187,6 +188,26 @@ pub fn prepare_items_for_table_view(dir: &str) -> (usize, Vec<DirView>) {
 
     (longest_path, items)
 }
+//struct TableViewWrapper {
+//    view: TableView<DirView, BasicColumn>,
+//    watcher: Option<RecommendedWatcher>,
+//}
+//impl ViewWrapper for TableViewWrapper {
+//    type V = TableView<DirView, BasicColumn>;
+//    fn with_view<F, R>(&self, f: F) -> Option<R>
+//    where
+//        F: FnOnce(&Self::V) -> R,
+//    {
+//        Some(f(&self.view))
+//    }
+//    fn with_view_mut<F, R>(&mut self, f: F) -> Option<R>
+//    where
+//        F: FnOnce(&mut Self::V) -> R,
+//    {
+//        Some(f(&mut self.view))
+//    }
+//}
+
 pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
     let (longest_path, items) = prepare_items_for_table_view(dir);
     TableView::<DirView, BasicColumn>::new()
@@ -222,6 +243,10 @@ pub fn create_table(dir: &str) -> TableView<DirView, BasicColumn> {
             true,
         )
         .items(items)
+    //TableViewWrapper {
+    //    view: table_view,
+    //    watcher: None,
+    //}
 }
 
 use std::fs::{self, DirEntry};

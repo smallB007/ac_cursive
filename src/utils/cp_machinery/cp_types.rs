@@ -54,3 +54,9 @@ pub enum ExistingPathDilemma {
     ReplaceNewer(bool),
     DifferentSizes(bool),
 }
+
+#[derive(Clone)]
+pub struct UpdateInfo {
+    pub table_view_name: String,
+    pub path: String,
+}

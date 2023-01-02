@@ -38,7 +38,9 @@ fn main() {
         f5_handler(s);
     });
     create_menubar(&mut siv);
-    let classic_layout = create_classic_layout("/home/artie/Desktop/Coumbo", "/tmp");
+
+    let classic_layout =
+        create_classic_layout("/home/artie/Desktop/Coumbo", "/tmp", siv.cb_sink().clone());
     siv.add_fullscreen_layer(classic_layout);
 
     siv.run();

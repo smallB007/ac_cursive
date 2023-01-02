@@ -19,7 +19,7 @@ pub fn create_info_layout(dir: &str, path: &str) -> LinearLayout {
 
     layout_panes
         .get_mut()
-        .add_child(create_panel("InfoPanelDir", dir, Some(info_cb)));
+        .add_child(create_panel("InfoPanelDir", dir, Some(info_cb), None));
     layout_panes
         .get_mut()
         .add_child(create_info_panel("InfoPanelPath", path, path));

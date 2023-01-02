@@ -1,13 +1,16 @@
 use cursive::Cursive;
 
 use std::{
+    cell::RefCell,
     ffi::OsStr,
     fs::DirEntry,
     path::{Path, PathBuf},
+    rc::Rc,
+    sync::mpsc::Sender,
     time::SystemTime,
 };
 
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Config, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_mini::new_debouncer_opt;
 
 use crate::definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME};
@@ -16,6 +19,8 @@ use cursive::views::{
     Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView, TextView,
 };
 use cursive_table_view::{TableView, TableViewItem};
+
+use super::cp_machinery::cp_types::UpdateInfo;
 pub fn get_active_table_name(s: &mut Cursive) -> String {
     let left_focus_time = s
         .call_on_name(
@@ -193,6 +198,10 @@ pub fn pathbuf_to_lossy_string(path_buf: &PathBuf) -> String {
     path_buf.as_os_str().to_string_lossy().to_string()
 }
 
+pub fn path_to_lossy_string(path: &Path) -> String {
+    path.as_os_str().to_string_lossy().to_string()
+}
+
 pub fn os_string_to_lossy_string(os_string: &OsStr) -> String {
     os_string.to_string_lossy().to_string()
 }
@@ -206,14 +215,67 @@ pub fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
 
     // Add a path to be watched. All files and directories at that path and
     // below will be monitored for changes.
-    watcher.watch(path.as_ref(), RecursiveMode::Recursive)?;
-
-    for res in rx.recv() {
-        match res {
-            Ok(event) => println!("changed: {:?}", event),
-            Err(e) => println!("watch error: {:?}", e),
+    watcher.watch(path.as_ref(), RecursiveMode::NonRecursive)?;
+    std::thread::spawn(move || {
+        for res in rx.iter() {
+            match res {
+                Ok(event) => println!("changed: {:?}", event),
+                Err(e) => println!("watch error: {:?}", e),
+            }
         }
-    }
+    });
 
+    Ok(())
+}
+
+pub fn init_watcher(
+    table_view_name: String,
+    path: String,
+    tx_change_in_dir_detected: Sender<UpdateInfo>,
+) -> notify::Result<RecommendedWatcher> {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    // Automatically select the best implementation for your platform.
+    // You can also access each implementation directly e.g. INotifyWatcher.
+    let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
+
+    // Add a path to be watched. All files and directories at that path and
+    // below will be monitored for changes.
+    watcher.watch(path.as_ref(), RecursiveMode::NonRecursive)?;
+    let path_clone_base = path.clone();
+    std::thread::spawn(move || {
+        for res in rx.iter() {
+            let path_clone = path_clone_base.clone();
+            let table_view_name_clone = table_view_name.clone();
+            match res {
+                Ok(event) => {
+                    eprintln!("changed: {:?}", event);
+                    if tx_change_in_dir_detected
+                        .send(UpdateInfo {
+                            table_view_name: table_view_name_clone,
+                            path: path_clone,
+                        })
+                        .is_err()
+                    {
+                        eprintln!("Err: tx_change_in_dir_detected.send");
+                    }
+                }
+                Err(e) => eprintln!("watch error: {:?}", e),
+            }
+        }
+    });
+
+    Ok(watcher)
+}
+
+pub fn update_watcher<P: AsRef<Path>>(
+    watcher: Rc<RefCell<INotifyWatcher>>,
+    old_path: P,
+    new_path: P,
+) -> notify::Result<()> {
+    watcher.borrow_mut().unwatch(old_path.as_ref())?;
+    watcher
+        .borrow_mut()
+        .watch(new_path.as_ref(), RecursiveMode::NonRecursive)?;
     Ok(())
 }
