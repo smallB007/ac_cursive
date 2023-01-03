@@ -192,7 +192,6 @@ fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal:
     );
 
     watch_progress_handle.join();
-    eprintln!("[COPYING] FINISHED");
 }
 
 fn create_watch_progress_thread(
@@ -349,6 +348,7 @@ fn execute_process(
         //++artie, so progresswatch thread is definitely cancelled
         signal_flag(&interrupt_component.unwrap());
     }
+    eprintln!("[COPYING] FINISHED");
     Cp_error::CP_EXIT_STATUS_SUCCESS
 }
 
