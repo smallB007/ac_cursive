@@ -46,7 +46,10 @@ fn deselect_copied_item(s: &mut Cursive, copied_item_inx: usize) {
 
 pub fn update_cpy_dlg_progress(s: &mut Cursive, percent: u64) {
     //++artie, change name to update_progress
-    s.call_on_all_named("cpy_progress", |progress_bar: &mut ProgressBar| {
+    //s.call_on_all_named(CPY_PROGRESSBAR_NAME, |progress_bar: &mut ProgressBar| {
+    //    progress_bar.set_value(percent as usize);
+    //});
+    s.call_on_name(CPY_PROGRESSBAR_NAME, |progress_bar: &mut ProgressBar| {
         progress_bar.set_value(percent as usize);
     });
 }
@@ -61,6 +64,9 @@ pub fn update_cpy_dlg_current_item_number(s: &mut Cursive, current_item_no: u64)
     s.call_on_name("copied_n_of_x", |text_view: &mut TextView| {
         text_view.set_content(format!("{current_item_no}",)); //++artie, must be number only, otherwise parsing will panic
     });
+    //s.call_on_name(CPY_PROGRESSBAR_NAME, |progress_bar: &mut ProgressBar| {
+    //    progress_bar.set_value(10 as usize);
+    //});
 }
 
 pub fn update_cpy_dlg_current_item_source_target_hlpr(

@@ -205,7 +205,7 @@ pub fn path_to_lossy_string(path: &Path) -> String {
 pub fn os_string_to_lossy_string(os_string: &OsStr) -> String {
     os_string.to_string_lossy().to_string()
 }
-
+#[cfg(unused)]
 pub fn watch<P: AsRef<Path>>(path: P) -> notify::Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
@@ -245,7 +245,7 @@ pub fn init_watcher(
     let path_clone_base = path.clone();
     std::thread::spawn(move || {
         for res in rx.iter() {
-            let path_clone = path_clone_base.clone();
+            //let path_clone = path_clone_base.clone();
             let table_view_name_clone = table_view_name.clone();
             match res {
                 Ok(event) => {
@@ -259,6 +259,7 @@ pub fn init_watcher(
                     {
                         eprintln!("Err: tx_change_in_dir_detected.send");
                     }
+                    std::thread::sleep(std::time::Duration::from_secs(3));
                 }
                 Err(e) => eprintln!("watch error: {:?}", e),
             }

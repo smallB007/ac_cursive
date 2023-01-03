@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
     cursive::view::Nameable,
-    definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME},
+    definitions::definitions::{CPY_PROGRESSBAR_NAME, LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME},
     utils::{
         common_utils::{
             get_active_table_first_selected_index, get_active_table_focused_item,
@@ -105,7 +105,8 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
         }));
     let progress_on_event = OnEventView::new(
         ProgressBar::new()
-            .with_name("cpy_progress")
+            .with_name("dm")
+            //.with_name(CPY_PROGRESSBAR_NAME)
             .fixed_width(4 /*length of Copy */),
     );
     /*let progress_on_event = progress_on_event.on_event(

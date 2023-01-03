@@ -1,2 +1,4 @@
 [Done]On empty selection dlg is shown and nothing happens
+//////////path exist
 Format file info on path exists, especially size
+Either set max widht or insert dummy views in between buttons (if the path is long enough the adjustment of btns is to the right)

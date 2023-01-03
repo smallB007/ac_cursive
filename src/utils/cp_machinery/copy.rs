@@ -171,14 +171,14 @@ fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal:
     eprintln!("[COPYING] START: from: { } to: {}", job.source, job.target);
     let (tx_progress, rx_progress) = std::sync::mpsc::channel();
     let break_condition = Arc::new(Mutex::new(false));
-    let break_condition_for_progress_thread = break_condition.clone();
-    let break_condition_for_copying_thread = break_condition.clone();
+    let break_condition_clone_1 = break_condition.clone();
+    let break_condition_clone_2 = break_condition.clone();
     let watch_progress_handle = create_watch_progress_thread(
         tx_progress,
         job.source.clone(),
         job.target.clone(),
         job.cb_sink.clone(),
-        break_condition_for_progress_thread,
+        break_condition_clone_1,
     );
     rx_progress.recv();
     execute_process(
@@ -187,7 +187,7 @@ fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal:
         Some(InterruptComponents {
             job,
             interrupt_rx,
-            break_condition: break_condition_for_copying_thread,
+            break_condition: break_condition_clone_2,
         }),
     );
 
@@ -221,8 +221,8 @@ fn create_watch_progress_thread(
                 _ => {}
             }
 
-            let full_dest_path_clone = full_dest_path.clone();
-            match std::fs::File::open(full_dest_path_clone) {
+            //let full_dest_path_clone = full_dest_path.clone();
+            match std::fs::File::open(&full_dest_path) {
                 Ok(f) => {
                     let len = f.metadata().unwrap().len();
                     let percent = if len == selected_item_len || selected_item_len == 0 {
@@ -242,6 +242,7 @@ fn create_watch_progress_thread(
                     }
                 }
                 Err(e) => {
+                    //panic!("couldn't open: {e}");
                     eprintln!("couldn't open: {e}");
                 }
             }
@@ -270,7 +271,7 @@ fn execute_process(
         Ok(process) => process,
     };
     match interrupt_component {
-        Some(interrupt_component) => {
+        Some(ref interrupt_component) => {
             let timeout = tick(std::time::Duration::from_secs(2));
             loop {
                 select! {
@@ -293,10 +294,7 @@ fn execute_process(
                                 b) set flag to true so the watch progress thread can finish */
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
                                 nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
-                                {
-                                let mut mutex_guard = interrupt_component.break_condition.lock().unwrap();
-                                *mutex_guard = true;
-                                }
+                                signal_flag(interrupt_component);
                                 break;
                             },
                             _=>{}
@@ -334,5 +332,27 @@ fn execute_process(
             }
         }
     }
+    {
+        let mut buf = String::new();
+        match process.stdout.unwrap().read_to_string(&mut buf) {
+            Err(why) => {
+                return Cp_error::CP_COULDNOT_READ_STDERR;
+            }
+            Ok(_) => {
+                if buf.len() != 0 {
+                    return Cp_error::CP_EXIT_STATUS_ERROR(buf);
+                }
+            }
+        }
+    }
+    if interrupt_component.is_some() {
+        //++artie, so progresswatch thread is definitely cancelled
+        signal_flag(&interrupt_component.unwrap());
+    }
     Cp_error::CP_EXIT_STATUS_SUCCESS
+}
+
+fn signal_flag(interrupt_component: &InterruptComponents) {
+    let mut mutex_guard = interrupt_component.break_condition.lock().unwrap();
+    *mutex_guard = true;
 }
