@@ -253,12 +253,12 @@ fn create_watch_progress_thread(
 }
 
 fn execute_process(
-    process: &str,
+    process_name: &str,
     args: &[&str],
     interrupt_component: Option<InterruptComponents>,
 ) -> EXIT_PROCESS_STATUS {
     let mut exit_process_status = EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS;
-    let mut process = match Command::new(process)
+    let mut process = match Command::new(process_name)
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -348,7 +348,7 @@ fn execute_process(
         //++artie, so progresswatch thread is definitely cancelled
         signal_flag(&interrupt_component.unwrap());
     }
-    eprintln!("[COPYING] FINISHED");
+    eprintln!("{}", format!("{} FINISHED", process_name));
     exit_process_status
 }
 
