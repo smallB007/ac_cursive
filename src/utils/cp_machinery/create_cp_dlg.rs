@@ -34,15 +34,7 @@ pub fn create_cp_dlg(
                     .child(TextView::new("To: "))
                     .child(TextView::new("").with_name("target_path")),
             )
-            .child(ProgressBar::new().with_name(CPY_PROGRESSBAR_NAME)), //++artie, create separate dlg.child(
-                                                                        //    LinearLayout::vertical()
-                                                                        //        .child(
-                                                                        //            TextView::new("Errors detected:")
-                                                                        //                .max_height(0)
-                                                                        //                .with_name("error_list_label"), /*++artie, 0 == invisible ;) */
-                                                                        //        )
-                                                                        //        .child(ScrollView::new(ListView::new().with_name("error_list"))),
-                                                                        //),
+            .child(ProgressBar::new().with_name(CPY_PROGRESSBAR_NAME)),
     )
     .button("Cancel", move |s| {
         eprintln!("Cancelling copy ops");
