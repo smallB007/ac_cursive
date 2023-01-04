@@ -105,7 +105,7 @@ another process and try again.",
             &interrupt_rx,
             cb_sink.clone(),
         ) {
-            Cp_error::CP_EXIT_STATUS_ERROR(exit_status) => {
+            EXIT_PROCESS_STATUS::EXIT_STATUS_ERROR(exit_status) => {
                 let failed_path = String::from(src_target[0].clone());
                 cb_sink.send(Box::new(move |s| {
                     update_copy_dlg_with_error_cb(
@@ -144,21 +144,21 @@ static PANGRAM: &'static str = "the quick brown fox jumped over the lazy dog\n";
 //use anyhow::{Context, Result};
 //use thiserror::Error;
 //#[derive(Error, Debug)]
-//enum Cp_error {
+//enum EXIT_PROCESS_STATUS {
 //    #[error("Source does not exist")]
 //    CP_SOURCE_DOESNOT_EXIST,
 //    #[error("Target does not exist")]
 //    CP_TARGET_DOESNOT_EXIST,
 //    #[error("Could not start cp process")]
-//    CP_COULDNOT_START,
+//    COULD_NOT_START,
 //    #[error("Could not read stderr")]
-//    CP_COULDNOT_READ_STDERR,
+//    COULD_NOT_READ_STDERR,
 //    #[error("Could not read stdout")]
-//    CP_COULDNOT_READ_STDOUT,
+//    COULD_NOT_READ_STDOUT,
 //    #[error("")]
-//    CP_EXIT_STATUS_ERROR(String),
+//    EXIT_STATUS_ERROR(String),
 //    #[error("")]
-//    CP_EXIT_STATUS_SUCCESS,
+//    EXIT_STATUS_SUCCESS,
 //}
 
 //fn await_interrupt(interrupt_notification_channel: Crossbeam_Sender<()>) {
@@ -180,7 +180,7 @@ fn cp_path(
     target: &str,
     interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>,
     cb_sink: CbSink,
-) -> Cp_error {
+) -> EXIT_PROCESS_STATUS {
     //for i in 1..=3 {
     //let src = "a";
     //let target = "/tmp";
@@ -195,12 +195,12 @@ fn cp_path(
         .spawn()
     {
         Err(why) => {
-            return Cp_error::CP_COULDNOT_START;
+            return EXIT_PROCESS_STATUS::COULD_NOT_START;
             //    panic!("couldn't spawn wc: {}", why)
         }
         Ok(process) => process,
     };
-    //Cp_error
+    //EXIT_PROCESS_STATUS
     // Write a string to the `stdin` of `wc`.
     //
     // `stdin` has type `Option<ChildStdin>`, but since we know this instance
@@ -279,7 +279,7 @@ fn cp_path(
         let mut s = String::new();
         match process.stderr.unwrap().read_to_string(&mut s) {
             Err(why) => {
-                return Cp_error::CP_COULDNOT_READ_STDERR;
+                return EXIT_PROCESS_STATUS::COULD_NOT_READ_STDERR;
                 //    panic!("couldn't read wc stdout: {}", why)
             }
             Ok(_) => {
@@ -288,7 +288,7 @@ fn cp_path(
                     target: &str,
                     interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>,
                     cb_sink: CbSink,
-                ) -> Cp_error {
+                ) -> EXIT_PROCESS_STATUS {
                     //for i in 1..=3 {
                     //let src = "a";
                     //let target = "/tmp";
@@ -303,7 +303,7 @@ fn cp_path(
                         .spawn()
                     {
                         Err(why) => {
-                            return Cp_error::CP_COULDNOT_START;
+                            return EXIT_PROCESS_STATUS::COULD_NOT_START;
                             //    panic!("couldn't spawn wc: {}", why)
                         }
                         Ok(process) => process,
@@ -387,22 +387,22 @@ fn cp_path(
                         let mut s = String::new();
                         match process.stderr.unwrap().read_to_string(&mut s) {
                             Err(why) => {
-                                return Cp_error::CP_COULDNOT_READ_STDERR;
+                                return EXIT_PROCESS_STATUS::COULD_NOT_READ_STDERR;
                                 //    panic!("couldn't read wc stdout: {}", why)
                             }
                             Ok(_) => {
                                 if s.len() != 0 {
-                                    return Cp_error::CP_EXIT_STATUS_ERROR(s);
+                                    return EXIT_PROCESS_STATUS::EXIT_STATUS_ERROR(s);
                                 }
                             }
                         }
                     }
-                    Cp_error::CP_EXIT_STATUS_SUCCESS
+                    EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS
                     // The `stdout` field also has type `Option<ChildStdout>` so must be unwrapped.
                     //let mut s = String::new();
                     //match process.stdout.unwrap().read_to_string(&mut s) {
                     //    Err(why) => {
-                    //        return Some(Cp_error::CP_COULDNOT_READ_STDOUT);
+                    //        return Some(EXIT_PROCESS_STATUS::COULD_NOT_READ_STDOUT);
                     //        //    panic!("couldn't read wc stdout: {}", why)
                     //    }
                     //    Ok(_) => print!("cp responded with:\n{}", s),
@@ -412,17 +412,17 @@ fn cp_path(
                 }
 
                 if s.len() != 0 {
-                    return Cp_error::CP_EXIT_STATUS_ERROR(s);
+                    return EXIT_PROCESS_STATUS::EXIT_STATUS_ERROR(s);
                 }
             }
         }
     }
-    Cp_error::CP_EXIT_STATUS_SUCCESS
+    EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS
     // The `stdout` field also has type `Option<ChildStdout>` so must be unwrapped.
     //let mut s = String::new();
     //match process.stdout.unwrap().read_to_string(&mut s) {
     //    Err(why) => {
-    //        return Some(Cp_error::CP_COULDNOT_READ_STDOUT);
+    //        return Some(EXIT_PROCESS_STATUS::COULD_NOT_READ_STDOUT);
     //        //    panic!("couldn't read wc stdout: {}", why)
     //    }
     //    Ok(_) => print!("cp responded with:\n{}", s),

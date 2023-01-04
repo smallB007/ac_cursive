@@ -23,22 +23,24 @@ pub struct copy_job {
 
 pub type CopyJobs = VecDeque<copy_job>; //++artie, Vec?
 
-#[derive(Error, Debug)]
-pub enum Cp_error {
+#[derive(Error, Debug, PartialEq)]
+pub enum EXIT_PROCESS_STATUS {
     #[error("Source does not exist")]
     CP_SOURCE_DOESNOT_EXIST,
     #[error("Target does not exist")]
     CP_TARGET_DOESNOT_EXIST,
     #[error("Could not start cp process")]
-    CP_COULDNOT_START,
+    COULD_NOT_START,
+    #[error("Cancelled")]
+    CANCELLED,
     #[error("Could not read stderr")]
-    CP_COULDNOT_READ_STDERR,
+    COULD_NOT_READ_STDERR(String /*reason/output */),
     #[error("Could not read stdout")]
-    CP_COULDNOT_READ_STDOUT,
+    COULD_NOT_READ_STDOUT(String /*reason/output */),
     #[error("")]
-    CP_EXIT_STATUS_ERROR(String),
+    EXIT_STATUS_ERROR(String),
     #[error("")]
-    CP_EXIT_STATUS_SUCCESS,
+    EXIT_STATUS_SUCCESS,
 }
 
 pub struct InterruptComponents<'a> {

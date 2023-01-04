@@ -8,7 +8,7 @@ fn cp_path_new(
     //++artie, use execute process
     job: copy_job,
     interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>,
-) -> Cp_error {
+) -> EXIT_PROCESS_STATUS {
     let mut process = match Command::new("cp")
         .arg("-f")
         .arg(job.source)
@@ -19,7 +19,7 @@ fn cp_path_new(
         .spawn()
     {
         Err(why) => {
-            return Cp_error::CP_COULDNOT_START;
+            return EXIT_PROCESS_STATUS::COULD_NOT_START;
         }
         Ok(process) => process,
     };
@@ -67,16 +67,16 @@ fn cp_path_new(
         let mut buf = String::new();
         match process.stderr.unwrap().read_to_string(&mut buf) {
             Err(why) => {
-                return Cp_error::CP_COULDNOT_READ_STDERR;
+                return EXIT_PROCESS_STATUS::COULD_NOT_READ_STDERR;
             }
             Ok(_) => {
                 if buf.len() != 0 {
-                    return Cp_error::CP_EXIT_STATUS_ERROR(buf);
+                    return EXIT_PROCESS_STATUS::EXIT_STATUS_ERROR(buf);
                 }
             }
         }
     }
-    Cp_error::CP_EXIT_STATUS_SUCCESS
+    EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS
 }
 #[cfg(unused)]
 fn transfer_copying_jobs(

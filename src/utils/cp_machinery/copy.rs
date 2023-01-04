@@ -1,7 +1,7 @@
 use crate::{
     definitions::definitions::CPY_DLG_NAME,
     utils::cp_machinery::{
-        cp_types::{copy_job, CopyJobs, Cp_error, ExistingPathDilemma},
+        cp_types::{copy_job, CopyJobs, ExistingPathDilemma, EXIT_PROCESS_STATUS},
         cp_utils::{
             check_if_path_exists, close_cpy_dlg_hlpr, compare_paths_for_modification_time,
             compare_paths_for_size, open_cpy_dlg_hlpr, set_dlg_visible_hlpr,
@@ -19,8 +19,7 @@ use nix::sys::signal::Signal;
 use once_cell::sync::Lazy;
 use signal_hook::consts::*;
 use signal_hook::iterator::Signals;
-use std::io::prelude::*;
-use std::process::{Command, Stdio};
+use std::process::{ChildStderr, Command, Stdio};
 use std::{
     cmp::Ordering,
     collections::{HashMap, VecDeque},
@@ -31,6 +30,7 @@ use std::{
     },
     thread::JoinHandle,
 };
+use std::{io::prelude::*, process::ChildStdout};
 
 use super::cp_types::InterruptComponents;
 
@@ -256,7 +256,8 @@ fn execute_process(
     process: &str,
     args: &[&str],
     interrupt_component: Option<InterruptComponents>,
-) -> Cp_error {
+) -> EXIT_PROCESS_STATUS {
+    let mut exit_process_status = EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS;
     let mut process = match Command::new(process)
         .args(args)
         .stdin(Stdio::piped())
@@ -265,94 +266,116 @@ fn execute_process(
         .spawn()
     {
         Err(why) => {
-            return Cp_error::CP_COULDNOT_START;
+            exit_process_status = EXIT_PROCESS_STATUS::COULD_NOT_START;
+            None
         }
-        Ok(process) => process,
+        Ok(process) => Some(process),
     };
-    match interrupt_component {
-        Some(ref interrupt_component) => {
-            let timeout = tick(std::time::Duration::from_secs(2));
-            loop {
-                select! {
-                    recv(interrupt_component.interrupt_rx) -> interrupt_rx_result => {
-                        println!("Received interrupt notification:{:?}",interrupt_rx_result);
-                        let id = process.id();
-                        match interrupt_rx_result
-                        {
-                            Ok(nix::sys::signal::Signal::SIGSTOP)=>{
-                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGSTOP);
-                                interrupt_component.job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_continue_btn(s)}));
-                            },
-                            Ok(nix::sys::signal::Signal::SIGCONT)=>{
-                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
-                                interrupt_component.job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_pause_btn(s)}));
-                            },
-                            Ok(nix::sys::signal::Signal::SIGTERM)=>{
-                                /*Two steps:
-                                a) kill process
-                                b) set flag to true so the watch progress thread can finish */
-                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
-                                nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
-                                signal_flag(interrupt_component);
-                                break;
-                            },
-                            _=>{}
-                        }
-                      },
-                    recv(timeout) -> _ => {
-                        eprintln!("Checking if we finished the long task");
-                        match process.try_wait() {
-                            Ok(Some(status)) =>{ eprintln!("exited with: {status}");break;},
-                            Ok(None) => {
-                                eprintln!("status not ready yet");
+
+    match process {
+        Some(mut process) => {
+            match interrupt_component {
+                Some(ref interrupt_component) => {
+                    let timeout = tick(std::time::Duration::from_secs(2));
+                    loop {
+                        select! {
+                            recv(interrupt_component.interrupt_rx) -> interrupt_rx_result => {
+                                println!("Received interrupt notification:{:?}",interrupt_rx_result);
+                                let id = process.id();
+                                match interrupt_rx_result
+                                {
+                                    Ok(nix::sys::signal::Signal::SIGSTOP)=>{
+                                        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGSTOP);
+                                        interrupt_component.job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_continue_btn(s)}));
+                                    },
+                                    Ok(nix::sys::signal::Signal::SIGCONT)=>{
+                                        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
+                                        interrupt_component.job.cb_sink.send(Box::new(|s|{crate::utils::cp_machinery::cp_utils::cpy_dlg_show_pause_btn(s)}));
+                                    },
+                                    Ok(nix::sys::signal::Signal::SIGTERM)=>{
+                                        /*Two steps:
+                                        a) kill process
+                                        b) set flag to true so the watch progress thread can finish */
+                                        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGCONT);
+                                        nix::sys::signal::kill(nix::unistd::Pid::from_raw(id as i32),nix::sys::signal::Signal::SIGTERM);
+                                        exit_process_status = EXIT_PROCESS_STATUS::CANCELLED;
+                                        break;
+                                    },
+                                    _=>{}
+                                }
+                              },
+                            recv(timeout) -> _ => {
+                                eprintln!("Checking if we finished the long task");
+                                match process.try_wait() {
+                                    Ok(Some(status)) =>{ eprintln!("exited with: {status}");break;},
+                                    Ok(None) => {
+                                        eprintln!("status not ready yet");
+                                    }
+                                    Err(e) => {eprintln!("error attempting to wait: {e}");
+                                    exit_process_status = EXIT_PROCESS_STATUS::EXIT_STATUS_ERROR(format!("Could not wait: {}",e));
+                                    break;},
+                                }
                             }
-                            Err(e) => {eprintln!("error attempting to wait: {e}");break;},
                         }
+                        eprintln!("AFTER SELECT>>>>>>>>>>>>>>>>>>>>>>");
                     }
                 }
-                eprintln!("AFTER SELECT>>>>>>>>>>>>>>>>>>>>>>");
+
+                None => {}
+            }
+
+            eprintln!("AFTER LOOP>>>>>>>>>>>>>>>>>>>>>>");
+
+            if exit_process_status == EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS {
+                read_std_stream(
+                    process.stderr,
+                    &mut exit_process_status,
+                    EXIT_PROCESS_STATUS::COULD_NOT_READ_STDERR("".to_owned()),
+                );
+            }
+            if exit_process_status == EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS {
+                read_std_stream(
+                    process.stdout,
+                    &mut exit_process_status,
+                    EXIT_PROCESS_STATUS::COULD_NOT_READ_STDOUT("".to_owned()),
+                );
             }
         }
         None => {}
     }
 
-    eprintln!("AFTER LOOP>>>>>>>>>>>>>>>>>>>>>>");
-
-    {
-        let mut buf = String::new();
-        match process.stderr.unwrap().read_to_string(&mut buf) {
-            Err(why) => {
-                return Cp_error::CP_COULDNOT_READ_STDERR;
-            }
-            Ok(_) => {
-                if buf.len() != 0 {
-                    return Cp_error::CP_EXIT_STATUS_ERROR(buf);
-                }
-            }
-        }
-    }
-    {
-        let mut buf = String::new();
-        match process.stdout.unwrap().read_to_string(&mut buf) {
-            Err(why) => {
-                return Cp_error::CP_COULDNOT_READ_STDERR;
-            }
-            Ok(_) => {
-                if buf.len() != 0 {
-                    return Cp_error::CP_EXIT_STATUS_ERROR(buf);
-                }
-            }
-        }
-    }
     if interrupt_component.is_some() {
         //++artie, so progresswatch thread is definitely cancelled
         signal_flag(&interrupt_component.unwrap());
     }
     eprintln!("[COPYING] FINISHED");
-    Cp_error::CP_EXIT_STATUS_SUCCESS
+    exit_process_status
 }
 
 fn signal_flag(interrupt_component: &InterruptComponents) {
     let mut mutex_guard = interrupt_component.break_condition.lock().unwrap();
     *mutex_guard = true;
+}
+
+fn read_std_stream<T: std::io::Read>(
+    std_stream: Option<T>,
+    exit_process_status: &mut EXIT_PROCESS_STATUS,
+    err_flag: EXIT_PROCESS_STATUS,
+) {
+    let mut buf = String::new();
+
+    match std_stream.unwrap().read_to_string(&mut buf) {
+        Err(why) => {
+            if err_flag == EXIT_PROCESS_STATUS::COULD_NOT_READ_STDERR("".to_owned()) {
+                *exit_process_status = EXIT_PROCESS_STATUS::COULD_NOT_READ_STDERR(why.to_string());
+            } else if err_flag == EXIT_PROCESS_STATUS::COULD_NOT_READ_STDOUT("".to_owned()) {
+                *exit_process_status = EXIT_PROCESS_STATUS::COULD_NOT_READ_STDOUT(why.to_string());
+            }
+        }
+        Ok(_) => {
+            if buf.len() != 0 {
+                *exit_process_status = EXIT_PROCESS_STATUS::EXIT_STATUS_ERROR(buf.clone());
+            }
+        }
+    }
 }
