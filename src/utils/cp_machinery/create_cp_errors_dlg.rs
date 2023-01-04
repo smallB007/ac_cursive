@@ -1,7 +1,8 @@
 use cursive::{
     view::{Nameable, Resizable},
     views::{
-        Dialog, DummyView, LinearLayout, ListView, NamedView, ScrollView, TextContent, TextView,
+        Dialog, DummyView, LinearLayout, ListView, NamedView, ScrollView, SelectView, TextContent,
+        TextView,
     },
     Cursive,
 };
@@ -19,11 +20,11 @@ pub fn display_cp_errors_dlg(s: &mut Cursive, errors: Vec<ExitInfo>) {
     show_error_themed_view(s, dlg);
 }
 fn create_cp_errors_dlg(errors: Vec<ExitInfo>) -> NamedView<Dialog> {
-    let mut list_view = ListView::new();
+    let mut list_view = SelectView::new();
     for error in &errors {
         let lbl: String = error.process.to_string();
         let content: String = format!("{}", "error.exit_status");
-        list_view.add_child(
+        list_view.add_item(
             &lbl,
             //&error.process,
             TextView::new_with_content(TextContent::new(content)),
