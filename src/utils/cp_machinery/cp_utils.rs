@@ -386,7 +386,7 @@ pub fn open_cpy_dlg_hlpr(cb_sink: CbSink) -> Crossbeam_Receiver<nix::sys::signal
 
     interrupt_rx
 }
-pub fn close_cpy_dlg_hlpr(cb_sink: CbSink) {
+pub fn close_cpy_dlg_hlpr(cb_sink: &CbSink) {
     if cb_sink
         .send(Box::new(|s| {
             s.set_user_data(());

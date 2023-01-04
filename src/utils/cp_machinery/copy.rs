@@ -19,7 +19,6 @@ use nix::sys::signal::Signal;
 use once_cell::sync::Lazy;
 use signal_hook::consts::*;
 use signal_hook::iterator::Signals;
-use std::process::{ChildStderr, Command, Stdio};
 use std::{
     cmp::Ordering,
     collections::{HashMap, VecDeque},
@@ -30,15 +29,26 @@ use std::{
     },
     thread::JoinHandle,
 };
+use std::{
+    f32::consts::E,
+    process::{ChildStderr, Command, Stdio},
+};
 use std::{io::prelude::*, process::ChildStdout};
 
-use super::cp_types::InterruptComponents;
+use super::{
+    cp_types::{ExitInfo, InterruptComponents},
+    create_cp_errors_dlg::display_cp_errors_dlg,
+};
 
 pub fn init_cp_sequence(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) {
     server_thread(copy_jobs_feed_rx, cb_sink);
 }
 
-fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: Receiver<CopyJobs>) {
+fn enter_cpy_loop(
+    interrupt_rx: Crossbeam_Receiver<Signal>,
+    copy_jobs_feed_rx: Receiver<CopyJobs>,
+    errors: &mut Vec<ExitInfo>,
+) {
     eprintln!("[SERVER] Trying to get data");
     let mut overwrite_all_flag = false;
     let mut skip_all_flag = false;
@@ -153,7 +163,7 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
                 cp_job.source.clone(),
                 cp_job.target.clone(),
             );
-            perform_op(cp_job, &interrupt_rx);
+            perform_op(cp_job, &interrupt_rx, errors);
         }
     }
     eprintln!("[SERVER] Exiting >>>>>>>>>>>>>>>>>>>>");
@@ -161,13 +171,28 @@ fn enter_cpy_loop(interrupt_rx: Crossbeam_Receiver<Signal>, copy_jobs_feed_rx: R
 
 fn server_thread(copy_jobs_feed_rx: Receiver<CopyJobs>, cb_sink: CbSink) {
     std::thread::spawn(move || {
+        let mut errors = Vec::new();
         let interrupt_rx = open_cpy_dlg_hlpr(cb_sink.clone());
-        enter_cpy_loop(interrupt_rx, copy_jobs_feed_rx);
-        close_cpy_dlg_hlpr(cb_sink);
+        enter_cpy_loop(interrupt_rx, copy_jobs_feed_rx, &mut errors);
+        close_cpy_dlg_hlpr(&cb_sink);
+        if !errors.is_empty() {
+            if cb_sink
+                .send(Box::new(move |s| {
+                    display_cp_errors_dlg(s, errors);
+                }))
+                .is_err()
+            {
+                eprintln!("Err: server_thread::cb_sink.send");
+            }
+        }
     });
 }
 
-fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>) {
+fn perform_op(
+    job: copy_job,
+    interrupt_rx: &Crossbeam_Receiver<nix::sys::signal::Signal>,
+    errors: &mut Vec<ExitInfo>,
+) {
     eprintln!("[COPYING] START: from: { } to: {}", job.source, job.target);
     let (tx_progress, rx_progress) = std::sync::mpsc::channel();
     let break_condition = Arc::new(Mutex::new(false));
@@ -189,7 +214,11 @@ fn perform_op(job: copy_job, interrupt_rx: &Crossbeam_Receiver<nix::sys::signal:
             interrupt_rx,
             break_condition: break_condition_clone_2,
         }),
-    );
+    )
+    .unwrap_or_else(|info| {
+        eprintln!("{}", format!("Could not copy: {:?}", info));
+        errors.push(info);
+    });
 
     watch_progress_handle.join();
 }
@@ -256,7 +285,7 @@ fn execute_process(
     process_name: &str,
     args: &[&str],
     interrupt_component: Option<InterruptComponents>,
-) -> EXIT_PROCESS_STATUS {
+) -> anyhow::Result<(), ExitInfo> {
     let mut exit_process_status = EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS;
     let mut process = match Command::new(process_name)
         .args(args)
@@ -349,7 +378,14 @@ fn execute_process(
         signal_flag(&interrupt_component.unwrap());
     }
     eprintln!("{}", format!("{} FINISHED", process_name));
-    exit_process_status
+    if exit_process_status == EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS {
+        Ok(())
+    } else {
+        Err(ExitInfo {
+            exit_status: exit_process_status,
+            process: process_name.to_owned(),
+        })
+    }
 }
 
 fn signal_flag(interrupt_component: &InterruptComponents) {

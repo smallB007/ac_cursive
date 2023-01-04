@@ -23,6 +23,11 @@ pub struct copy_job {
 
 pub type CopyJobs = VecDeque<copy_job>; //++artie, Vec?
 
+#[derive(Debug)]
+pub struct ExitInfo {
+    pub exit_status: EXIT_PROCESS_STATUS,
+    pub process: String,
+}
 #[derive(Error, Debug, PartialEq)]
 pub enum EXIT_PROCESS_STATUS {
     #[error("Source does not exist")]
