@@ -33,6 +33,7 @@ use cursive::{
 use cursive_table_view::TableView;
 use futures::SinkExt;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use std::os::unix::prelude::PermissionsExt;
 use std::time::SystemTime;
 use std::{cmp::Ordering, fs::Permissions};
@@ -627,6 +628,11 @@ pub fn alt_f1_handler(s: &mut Cursive) {
 fn display_quick_cd_hint(s: &mut Cursive) {
     let dialog_name = get_active_dlg_name(s); //++artie, it must return String, if returns &str will complain that siv is borrowed mutably more than once
     let current_path = get_current_path_from_dialog_name(s, &dialog_name);
+    let path_with_hints = prepare_path_with_hints(s, current_path);
+    update_dlg_title(s, &dialog_name, &path_with_hints);
+}
+
+fn prepare_path_with_hints(s: &mut Cursive, current_path: String) -> String {
     let forward_inx = current_path
         .chars()
         .filter(|&c| c == '/')
@@ -638,8 +644,21 @@ fn display_quick_cd_hint(s: &mut Cursive) {
     //update_dlg_title(s, &dialog_name, path);
     let mut path_with_hints = String::new();
     for (inx, p) in path.iter().enumerate() {
-        let parts_combined = format!("{}[{}]/", *p, inx);
+        let parts_combined = if inx == path.len() - 1 {
+            format!("{}", p)
+        } else {
+            format!("{}[{}]/", *p, inx)
+        };
         path_with_hints.push_str(&parts_combined);
     }
-    update_dlg_title(s, &dialog_name, &path_with_hints);
+
+    path_with_hints
+}
+
+pub static PATH_HINT_REGES: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\[\d+\])").unwrap());
+
+pub fn prepare_path_without_hints(s: &mut Cursive, current_path: String) -> String {
+    let mut path_without_hints = String::new();
+    path_without_hints = PATH_HINT_REGES.replace_all(&current_path, "").to_string();
+    path_without_hints
 }

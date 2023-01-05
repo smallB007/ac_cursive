@@ -13,16 +13,19 @@ use std::{
 use notify::{Config, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_mini::new_debouncer_opt;
 
-use crate::definitions::definitions::{
-    LEFT_PANEL_NAME, LEFT_TABLE_VIEW_NAME, RIGHT_PANEL_NAME, RIGHT_TABLE_VIEW_NAME,
-};
 use crate::tui_fn::create_table::{create_table, BasicColumn, DirView};
+use crate::{
+    definitions::definitions::{
+        LEFT_PANEL_NAME, LEFT_TABLE_VIEW_NAME, RIGHT_PANEL_NAME, RIGHT_TABLE_VIEW_NAME,
+    },
+    tui_fn::create_panel::update_dlg_title,
+};
 use cursive::views::{
     Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView, TextView,
 };
 use cursive_table_view::{TableView, TableViewItem};
 
-use super::cp_machinery::cp_types::UpdateInfo;
+use super::cp_machinery::{cp_types::UpdateInfo, cp_utils::prepare_path_without_hints};
 pub fn get_active_table_name(s: &mut Cursive) -> String {
     let left_focus_time = s
         .call_on_name(
@@ -192,13 +195,17 @@ pub fn readableBytes(bytes: usize) -> String {
 
 pub fn get_current_path_from_dialog_name(s: &mut Cursive, dialog_name: &str) -> String {
     /*First get the dialog's title which is first path of dir */
-    let current_path = s
-        .call_on_name(dialog_name, |s: &mut Dialog| {
-            let title = String::from(s.get_title());
+    let mut current_path = s
+        .call_on_name(dialog_name, |dlg: &mut Dialog| {
+            let title = String::from(dlg.get_title());
             title
         })
         .unwrap();
-
+    if current_path.contains('[') {
+        //This is in case we enabled hints on path
+        current_path = prepare_path_without_hints(s, current_path);
+        update_dlg_title(s, dialog_name, &current_path);
+    }
     current_path
 }
 
