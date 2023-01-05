@@ -13,7 +13,9 @@ use std::{
 use notify::{Config, INotifyWatcher, RecommendedWatcher, RecursiveMode, Watcher};
 use notify_debouncer_mini::new_debouncer_opt;
 
-use crate::definitions::definitions::{LEFT_TABLE_VIEW_NAME, RIGHT_TABLE_VIEW_NAME};
+use crate::definitions::definitions::{
+    LEFT_PANEL_NAME, LEFT_TABLE_VIEW_NAME, RIGHT_PANEL_NAME, RIGHT_TABLE_VIEW_NAME,
+};
 use crate::tui_fn::create_table::{create_table, BasicColumn, DirView};
 use cursive::views::{
     Dialog, DummyView, HideableView, LinearLayout, NamedView, ResizedView, StackView, TextView,
@@ -46,7 +48,13 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
         String::from(LEFT_TABLE_VIEW_NAME)
     }
 }
-
+pub fn get_active_dlg_name(s: &mut Cursive) -> String {
+    if get_active_table_name(s) == LEFT_TABLE_VIEW_NAME {
+        LEFT_PANEL_NAME.to_owned()
+    } else {
+        RIGHT_PANEL_NAME.to_owned()
+    }
+}
 pub fn get_active_table_focused_item_with_inx(
     s: &mut Cursive,
     active_table_name: &str,

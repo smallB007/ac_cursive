@@ -3,8 +3,11 @@ use super::{
     create_path_exists_dlg::create_path_exists_dlg,
     no_paths_selected_dlg::show_no_paths_selected_dlg,
 };
-use crate::cursive::view::{Nameable, Resizable};
 use crate::utils::cp_machinery::copy::init_cp_sequence;
+use crate::{
+    cursive::view::{Nameable, Resizable},
+    tui_fn::create_panel::update_dlg_title,
+};
 use crate::{
     definitions::definitions::*,
     tui_fn::create_table::{BasicColumn, DirView},
@@ -614,4 +617,29 @@ pub fn file_info(file: &str) -> Result<String, std::io::Error> {
 
 pub fn check_if_path_exists(target: &str) -> bool {
     std::path::Path::new(target).exists()
+}
+
+pub fn alt_f1_handler(s: &mut Cursive) {
+    eprintln!("alt_f1_handler");
+    display_quick_cd_hint(s);
+}
+
+fn display_quick_cd_hint(s: &mut Cursive) {
+    let dialog_name = get_active_dlg_name(s); //++artie, it must return String, if returns &str will complain that siv is borrowed mutably more than once
+    let current_path = get_current_path_from_dialog_name(s, &dialog_name);
+    let forward_inx = current_path
+        .chars()
+        .filter(|&c| c == '/')
+        .collect::<Vec<_>>()
+        .len();
+    let path = &current_path
+        .splitn(forward_inx + 1, '/')
+        .collect::<Vec<&str>>();
+    //update_dlg_title(s, &dialog_name, path);
+    let mut path_with_hints = String::new();
+    for (inx, p) in path.iter().enumerate() {
+        let parts_combined = format!("{}[{}]/", *p, inx);
+        path_with_hints.push_str(&parts_combined);
+    }
+    update_dlg_title(s, &dialog_name, &path_with_hints);
 }

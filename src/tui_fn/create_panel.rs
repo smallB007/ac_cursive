@@ -57,10 +57,13 @@ fn traverse_up(
             }
         }
         update_table(s, &new_path_clone, &table_view_name);
-        s.call_on_name(&dialog_name, |dlg: &mut Dialog| {
-            dlg.set_title(new_path_clone);
-        });
+        update_dlg_title(s, &dialog_name, &new_path_clone);
     }
+}
+pub fn update_dlg_title(s: &mut Cursive, dialog_name: &str, path: &str) {
+    s.call_on_name(&dialog_name, |dlg: &mut Dialog| {
+        dlg.set_title(path);
+    });
 }
 fn traverse_down(
     s: &mut Cursive,
