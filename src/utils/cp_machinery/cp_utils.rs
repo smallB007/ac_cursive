@@ -633,13 +633,13 @@ fn display_quick_cd_hint(s: &mut Cursive) {
 }
 
 fn prepare_path_with_hints(s: &mut Cursive, current_path: String) -> String {
-    let forward_inx = current_path
+    let slash_inx = current_path
         .chars()
-        .filter(|&c| c == '/')
+        .filter(|&c| c == PATH_SEPARATOR)
         .collect::<Vec<_>>()
         .len();
     let path = &current_path
-        .splitn(forward_inx + 1, '/')
+        .splitn(slash_inx + 1, PATH_SEPARATOR)
         .collect::<Vec<&str>>();
     //update_dlg_title(s, &dialog_name, path);
     let mut path_with_hints = String::new();
@@ -647,7 +647,7 @@ fn prepare_path_with_hints(s: &mut Cursive, current_path: String) -> String {
         let parts_combined = if inx == path.len() - 1 {
             format!("{}", p)
         } else {
-            format!("{}[{}]/", *p, inx)
+            format!("{}[{}]{}", *p, inx, PATH_SEPARATOR)
         };
         path_with_hints.push_str(&parts_combined);
     }

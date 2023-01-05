@@ -8,3 +8,4 @@ pub const CPY_ERRORS_DLG_NAME: &str = "cpy_errors_dlg";
 pub const CPY_ALL_CHCKBX_NAME: &str = "cpy_all_chckbx";
 pub const CPY_PROGRESSBAR_NAME: &str = "cpy_progress";
 pub const ERRORS_LIST_NAME: &str = "errors_list";
+pub const PATH_SEPARATOR: char = '/';
