@@ -26,11 +26,11 @@ fn create_name_for_table_view(name: &str) -> String {
     String::from(String::from(name) + "_tableview")
 }
 
-pub fn update_table(s: &mut Cursive, dialog_name: &String, table_view_name: &String) {
+pub fn update_table(s: &mut Cursive, path: &String, table_view_name: &String) {
     s.call_on_name(
         &table_view_name,
         |table: &mut TableView<DirView, BasicColumn>| {
-            let (longest_path, items) = prepare_items_for_table_view(&dialog_name);
+            let (longest_path, items) = prepare_items_for_table_view(&path);
             table.set_items(items);
         },
     );

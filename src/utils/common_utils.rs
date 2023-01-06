@@ -53,6 +53,7 @@ pub fn get_active_table_name(s: &mut Cursive) -> String {
 }
 pub fn get_active_dlg_name(s: &mut Cursive) -> String {
     if get_active_table_name(s) == LEFT_TABLE_VIEW_NAME {
+        //++artie, this needs rethinking, we should be able to deduce
         LEFT_PANEL_NAME.to_owned()
     } else {
         RIGHT_PANEL_NAME.to_owned()

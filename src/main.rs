@@ -35,8 +35,8 @@ use tui_fn::{
     create_menu::create_menubar, create_panel::create_panel,
     create_view_layout::create_view_layout,
 };
-use utils::cp_machinery::cp_utils::alt_f1_handler;
 use utils::cp_machinery::cp_utils::f5_handler;
+use utils::cp_machinery::cp_utils::{alt_f1_handler, quick_cd_handler};
 fn main() {
     let mut siv = cursive::default();
     init_callbacks(&mut siv);
@@ -50,10 +50,26 @@ fn main() {
 }
 
 fn init_callbacks(siv: &mut CursiveRunnable) {
-    siv.add_global_callback(cursive::event::Event::Key(Key::F2), |s| {
-        f5_handler(s);
-    });
+    init_f5_handler(siv);
+    init_alt_f1_handler(siv);
+    init_quick_cd_handlers(siv);
+}
+
+fn init_alt_f1_handler(siv: &mut Cursive) {
     siv.add_global_callback(cursive::event::Event::Alt(Key::F1), |s| {
         alt_f1_handler(s);
     });
+}
+fn init_f5_handler(siv: &mut Cursive) {
+    siv.add_global_callback(cursive::event::Event::Key(Key::F5), |s| {
+        f5_handler(s);
+    });
+}
+
+fn init_quick_cd_handlers(siv: &mut Cursive) {
+    for c in '0'..='9' {
+        siv.add_global_callback(cursive::event::Event::Char(c), move |s| {
+            quick_cd_handler(c, s);
+        });
+    }
 }

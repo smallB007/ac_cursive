@@ -3,7 +3,6 @@ use super::{
     create_path_exists_dlg::create_path_exists_dlg,
     no_paths_selected_dlg::show_no_paths_selected_dlg,
 };
-use crate::utils::cp_machinery::copy::init_cp_sequence;
 use crate::{
     cursive::view::{Nameable, Resizable},
     tui_fn::create_panel::update_dlg_title,
@@ -17,11 +16,13 @@ use crate::{
         cp_machinery::cp_types::{copy_job, CopyJobs},
     },
 };
+use crate::{tui_fn::create_panel::update_table, utils::cp_machinery::copy::init_cp_sequence};
 use crossbeam::channel::{
     self, after, select, tick, Receiver as Crossbeam_Receiver, Sender as Crossbeam_Sender,
 };
 use cursive::{
     self,
+    event::Key,
     theme::{self, Theme},
     views,
     views::{
@@ -633,13 +634,8 @@ fn display_quick_cd_hint(s: &mut Cursive) {
 }
 
 fn prepare_path_with_hints(s: &mut Cursive, current_path: String) -> String {
-    let slash_inx = current_path
-        .chars()
-        .filter(|&c| c == PATH_SEPARATOR)
-        .collect::<Vec<_>>()
-        .len();
-    let path = &current_path
-        .splitn(slash_inx + 1, PATH_SEPARATOR)
+    let path = current_path
+        .split_inclusive(PATH_SEPARATOR)
         .collect::<Vec<&str>>();
     //update_dlg_title(s, &dialog_name, path);
     let mut path_with_hints = String::new();
@@ -647,7 +643,7 @@ fn prepare_path_with_hints(s: &mut Cursive, current_path: String) -> String {
         let parts_combined = if inx == path.len() - 1 {
             format!("{}", p)
         } else {
-            format!("{}[{}]{}", *p, inx, PATH_SEPARATOR)
+            format!("[{}]{}", inx, *p)
         };
         path_with_hints.push_str(&parts_combined);
     }
@@ -656,9 +652,60 @@ fn prepare_path_with_hints(s: &mut Cursive, current_path: String) -> String {
 }
 
 pub static PATH_HINT_REGES: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\[\d+\])").unwrap());
+pub static PATH_SEPARATOR_REGES: Lazy<Regex> = Lazy::new(|| Regex::new(PATH_SEPARATOR).unwrap());
 
 pub fn prepare_path_without_hints(s: &mut Cursive, current_path: String) -> String {
     let mut path_without_hints = String::new();
     path_without_hints = PATH_HINT_REGES.replace_all(&current_path, "").to_string();
     path_without_hints
+}
+
+pub fn quick_cd_handler(key: char, s: &mut Cursive) {
+    eprintln!("quick_cd_handler: {}", key);
+    let dialog_name = get_active_dlg_name(s);
+    let table_view_name = get_active_table_name(s);
+
+    let current_path = get_current_path_from_dialog_name(s, &dialog_name);
+    let parts = current_path
+        .split_inclusive(PATH_SEPARATOR)
+        .collect::<Vec<_>>();
+    match key.to_digit(10) {
+        Some(digit) => {
+            if digit as usize >= parts.len() {
+                let dlg = create_cd_too_long_dlg(s);
+                show_info_themed_view(s, dlg);
+                return;
+            }
+            let (left, _) = parts.split_at((digit as usize) + 1);
+            let mut cd_path = String::new();
+            for part in left {
+                cd_path.push_str(part);
+            }
+            eprintln!("Path to cd to:{}", cd_path);
+            update_table(s, &cd_path, &table_view_name);
+            update_dlg_title(s, &dialog_name, &cd_path);
+        }
+        None => {
+            panic!("Ehe")
+        }
+    }
+    // let k_as_usize = key as usize - '0' as usize;
+
+    //for i in 0..=key as u8 {
+    //    cd_path.push_str(&String::from(parts[i as usize]));
+    //}
+    //let cd_to_path = PathBuf::from(current_path);
+    //let comps = cd_to_path.components();
+    //for comp in comps {
+    //    eprintln!("{:?}", comp);
+    //}
+    //for i in '0'..key {}
+}
+
+fn create_cd_too_long_dlg(s: &mut Cursive) -> Dialog {
+    Dialog::around(TextView::new(
+        "Path doesn't have that many parts.\nFor hints press Alt+F1",
+    ))
+    .dismiss_button("OK")
+    .title("Path is too short")
 }
