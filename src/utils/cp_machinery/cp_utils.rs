@@ -499,40 +499,54 @@ pub fn show_path_exists_dlg(
 }
 
 pub fn show_error_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
-    let theme = Lazy::new(|| {
-        eprintln!("Lazy theme");
-        let mut theme = Theme::default();
-
-        theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Red);
-        theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::White);
-        theme.palette[theme::PaletteColor::TitlePrimary] =
-            theme::Color::Light(theme::BaseColor::Yellow);
-        theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Green);
-
-        theme
-    });
-
     s.add_layer(views::ThemedView::new(
-        theme.clone(),
+        ERROR_THEME.clone(),
         views::Layer::new(dlg),
     ));
 }
 pub fn show_info_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
-    let theme = Lazy::new(|| {
-        eprintln!("Lazy theme");
-        let mut theme = Theme::default();
-
-        theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Cyan);
-        theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::White);
-        theme.palette[theme::PaletteColor::TitlePrimary] =
-            theme::Color::Light(theme::BaseColor::Black);
-        theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Black);
-
-        theme
-    });
-
     s.add_layer(views::ThemedView::new(
-        theme.clone(),
+        INFO_THEME.clone(),
+        views::Layer::new(dlg),
+    ));
+}
+static ERROR_THEME: Lazy<Theme> = Lazy::new(|| {
+    eprintln!("Lazy theme: ERROR_THEME");
+    let mut theme = Theme::default();
+
+    theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Red);
+    theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::White);
+    theme.palette[theme::PaletteColor::TitlePrimary] =
+        theme::Color::Light(theme::BaseColor::Yellow);
+    theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Green);
+
+    theme
+});
+static INFO_THEME: Lazy<Theme> = Lazy::new(|| {
+    eprintln!("Lazy theme: ERROR_THEME");
+    let mut theme = Theme::default();
+
+    theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Cyan);
+    theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::White);
+    theme.palette[theme::PaletteColor::TitlePrimary] = theme::Color::Light(theme::BaseColor::Black);
+    theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Black);
+
+    theme
+});
+static RESULT_THEME: Lazy<Theme> = Lazy::new(|| {
+    eprintln!("Lazy theme: RESULT_THEME");
+    let mut theme = Theme::default();
+
+    theme.palette[theme::PaletteColor::View] = theme::Color::Dark(theme::BaseColor::Cyan);
+    theme.palette[theme::PaletteColor::Primary] = theme::Color::Light(theme::BaseColor::White);
+    theme.palette[theme::PaletteColor::TitlePrimary] = theme::Color::Light(theme::BaseColor::Black);
+    theme.palette[theme::PaletteColor::Highlight] = theme::Color::Dark(theme::BaseColor::Black);
+
+    theme
+});
+pub fn show_result_themed_view<V: View>(s: &mut cursive::Cursive, dlg: V) {
+    s.add_layer(views::ThemedView::new(
+        RESULT_THEME.clone(),
         views::Layer::new(dlg),
     ));
 }

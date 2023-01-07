@@ -8,7 +8,7 @@ use crate::{
     definitions::definitions::{FIND_CONTENT, FIND_FILE_NAME, FIND_STARTING_DIR_NAME},
     utils::cp_machinery::{
         copy::execute_process,
-        cp_utils::{show_error_themed_view, show_info_themed_view},
+        cp_utils::{show_error_themed_view, show_info_themed_view, show_result_themed_view},
     },
 };
 
@@ -78,11 +78,15 @@ fn create_find_dlg() -> Dialog {
             eprintln!("Content: {}", content);
             let output = execute_process("fd", &["--glob", &file_name, &starting_dir], None);
             if output.std_err.len() != 0 {
-                let dlg = Dialog::around(TextView::new(output.std_err)).title("Errors detected");
+                let dlg = Dialog::around(TextView::new(output.std_err))
+                    .title("Errors detected")
+                    .dismiss_button("OK");
                 show_error_themed_view(s, dlg);
             } else {
-                let dlg = Dialog::around(TextView::new(output.std_out)).title("Find results");
-                show_info_themed_view(s, dlg);
+                let dlg = Dialog::around(TextView::new(output.std_out))
+                    .title("Find results")
+                    .dismiss_button("OK");
+                show_result_themed_view(s, dlg);
             }
         })
 }
