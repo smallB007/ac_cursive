@@ -22,6 +22,7 @@ use crate::{
         //cp_machinery::cp_client_main::cp_client_main,
         cp_machinery::cp_utils::update_cpy_dlg_progress,
         cp_machinery::cp_utils::{close_cpy_dlg, f5_handler, show_cpy_dlg},
+        find_machinery::f9_handler::f9_handler,
     },
 };
 use crate::{cursive::view::Resizable, utils::common_utils::get_active_table_selected_items};
@@ -144,21 +145,9 @@ pub fn create_classic_buttons() -> ResizedView<StackView> {
     let pulldown_layout = LinearLayout::horizontal()
         .child(TextView::new("F9").style(ColorStyle::title_primary()))
         .child(Button::new_raw("[ Find ]", move |s| {
-            //s.call_on_name(
-            //    "left_panel_hideable",
-            //    |ob: &mut NamedView<ResizedView<HideableView<NamedView<Dialog>>>>| {
-            //        ob.get_mut().get_inner_mut().hide();
-            //    },
-            //);
-            //let mut layout_panes = LinearLayout::new(Orientation::Horizontal);
-            //let named_v_right: NamedView<Dialog> = Dialog::around(create_table())
-            //    .title("Left")
-            //    .with_name("left_dialog");
-            //let hide_v_right: HideableView<NamedView<Dialog>> = HideableView::new(named_v_right);
-            //let hide_v_right_full_screed: NamedView<ResizedView<HideableView<NamedView<Dialog>>>> =
-            //    hide_v_right.full_screen().with_name("right_panel_hideable");
-            //layout_panes.add_child(hide_v_right_full_screed);
-            //s.add_fullscreen_layer(layout_panes);
+            s.on_event(cursive::event::Event::Key(cursive::event::Key::Up)); //hehe, this to bring the focus back where it was
+
+            f9_handler(s);
         }));
 
     let quit_layout = LinearLayout::horizontal()

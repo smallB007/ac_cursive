@@ -9,3 +9,6 @@ pub const CPY_ALL_CHCKBX_NAME: &str = "cpy_all_chckbx";
 pub const CPY_PROGRESSBAR_NAME: &str = "cpy_progress";
 pub const ERRORS_LIST_NAME: &str = "errors_list";
 pub const PATH_SEPARATOR: &str = "/";
+pub const FIND_STARTING_DIR_NAME: &str = "find_starting_dir";
+pub const FIND_FILE_NAME: &str = "find_file_name";
+pub const FIND_CONTENT: &str = "find_content";
