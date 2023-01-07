@@ -37,7 +37,10 @@ use tui_fn::{
 };
 use utils::cp_machinery::cp_utils::f5_handler;
 use utils::cp_machinery::cp_utils::{alt_f1_handler, quick_cd_handler};
+
 fn main() {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    log::info!("Entered main");
     let mut siv = cursive::default();
     init_callbacks(&mut siv);
     create_menubar(&mut siv);
