@@ -4,7 +4,13 @@ use cursive::{
     Cursive,
 };
 
-use crate::definitions::definitions::{FIND_CONTENT, FIND_FILE_NAME, FIND_STARTING_DIR_NAME};
+use crate::{
+    definitions::definitions::{FIND_CONTENT, FIND_FILE_NAME, FIND_STARTING_DIR_NAME},
+    utils::cp_machinery::{
+        copy::execute_process,
+        cp_utils::{show_error_themed_view, show_info_themed_view},
+    },
+};
 
 fn create_find_dlg() -> Dialog {
     Dialog::new()
@@ -19,6 +25,7 @@ fn create_find_dlg() -> Dialog {
                         .child(DummyView)
                         .child(
                             EditView::new()
+                                .content("/home/artie/Desktop/Coumbo")
                                 // Call `show_popup` when the user presses `Enter`
                                 .on_submit(show_popup)
                                 // Give the `EditView` a name so we can refer to it later.
@@ -35,6 +42,7 @@ fn create_find_dlg() -> Dialog {
                         .child(DummyView)
                         .child(
                             EditView::new()
+                                .content("1.txt")
                                 // Call `show_popup` when the user presses `Enter`
                                 .on_submit(show_popup)
                                 // Give the `EditView` a name so we can refer to it later.
@@ -68,6 +76,14 @@ fn create_find_dlg() -> Dialog {
             eprintln!("File name: {}", file_name);
             let content = get_find_X(s, FIND_CONTENT);
             eprintln!("Content: {}", content);
+            let output = execute_process("fd", &["--glob", &file_name, &starting_dir], None);
+            if output.std_err.len() != 0 {
+                let dlg = Dialog::around(TextView::new(output.std_err)).title("Errors detected");
+                show_error_themed_view(s, dlg);
+            } else {
+                let dlg = Dialog::around(TextView::new(output.std_out)).title("Find results");
+                show_info_themed_view(s, dlg);
+            }
         })
 }
 pub fn open_find_dlg(s: &mut Cursive) {

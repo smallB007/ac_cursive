@@ -206,7 +206,7 @@ fn perform_op(
         break_condition_clone_1,
     );
     rx_progress.recv();
-    execute_process(
+    let output = execute_process(
         "cp",
         &["-f", &job.source.clone(), &job.target.clone()],
         Some(InterruptComponents {
@@ -214,11 +214,15 @@ fn perform_op(
             interrupt_rx,
             break_condition: break_condition_clone_2,
         }),
-    )
-    .unwrap_or_else(|info| {
-        eprintln!("{}", format!("Could not copy: {:?}", info));
-        errors.push(info);
-    });
+    );
+    if output.std_err.len() != 0 {
+        eprintln!("{}", format!("Could not copy: {:?}", output.std_err));
+        errors.push(ExitInfo {
+            //++artie todo, this is dummy
+            exit_status: EXIT_PROCESS_STATUS::CANCELLED,
+            process: output.std_err,
+        });
+    };
 
     watch_progress_handle.join();
 }
@@ -280,12 +284,16 @@ fn create_watch_progress_thread(
 
     progress_watch_thread_handle
 }
+pub struct ProcessOutput {
+    pub std_out: String,
+    pub std_err: String,
+}
 
-fn execute_process(
+pub fn execute_process(
     process_name: &str,
     args: &[&str],
     interrupt_component: Option<InterruptComponents>,
-) -> anyhow::Result<(), ExitInfo> {
+) -> ProcessOutput {
     let mut exit_process_status = EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS;
     let mut process = match Command::new(process_name)
         .args(args)
@@ -300,7 +308,8 @@ fn execute_process(
         }
         Ok(process) => Some(process),
     };
-
+    let mut std_out = String::new();
+    let mut std_err = String::new();
     match process {
         Some(mut process) => {
             match interrupt_component {
@@ -355,20 +364,17 @@ fn execute_process(
 
             eprintln!("AFTER LOOP>>>>>>>>>>>>>>>>>>>>>>");
 
-            if exit_process_status == EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS {
-                read_std_stream(
-                    process.stderr,
-                    &mut exit_process_status,
-                    EXIT_PROCESS_STATUS::COULD_NOT_READ_STDERR("".to_owned()),
-                );
-            }
-            if exit_process_status == EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS {
-                read_std_stream(
-                    process.stdout,
-                    &mut exit_process_status,
-                    EXIT_PROCESS_STATUS::COULD_NOT_READ_STDOUT("".to_owned()),
-                );
-            }
+            std_err = read_std_stream(
+                process.stderr,
+                &mut exit_process_status,
+                EXIT_PROCESS_STATUS::COULD_NOT_READ_STDERR("".to_owned()),
+            );
+
+            std_out = read_std_stream(
+                process.stdout,
+                &mut exit_process_status,
+                EXIT_PROCESS_STATUS::COULD_NOT_READ_STDOUT("".to_owned()),
+            );
         }
         None => {}
     }
@@ -378,14 +384,17 @@ fn execute_process(
         signal_flag(&interrupt_component.unwrap());
     }
     eprintln!("{}", format!("{} FINISHED", process_name));
-    if exit_process_status == EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS {
-        Ok(())
-    } else {
-        Err(ExitInfo {
-            exit_status: exit_process_status,
-            process: process_name.to_owned(),
-        })
-    }
+    //if exit_process_status == EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS {
+    //    Ok(ProcessOutput {
+    //        std_out: process_output,
+    //    })
+    //} else {
+    //    Err(ExitInfo {
+    //        exit_status: exit_process_status,
+    //        process: process_name.to_owned(),
+    //    })
+    //}
+    ProcessOutput { std_out, std_err }
 }
 
 fn signal_flag(interrupt_component: &InterruptComponents) {
@@ -397,7 +406,7 @@ fn read_std_stream<T: std::io::Read>(
     std_stream: Option<T>,
     exit_process_status: &mut EXIT_PROCESS_STATUS,
     err_flag: EXIT_PROCESS_STATUS,
-) {
+) -> String {
     let mut buf = String::new();
 
     match std_stream.unwrap().read_to_string(&mut buf) {
@@ -414,4 +423,5 @@ fn read_std_stream<T: std::io::Read>(
             }
         }
     }
+    buf
 }
