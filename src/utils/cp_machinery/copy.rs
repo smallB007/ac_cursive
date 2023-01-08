@@ -294,6 +294,8 @@ pub fn execute_process(
     args: &[&str],
     interrupt_component: Option<InterruptComponents>,
 ) -> ProcessOutput {
+    let command_line = args.iter().copied().collect::<String>();
+    eprintln!("{}", command_line);
     let mut exit_process_status = EXIT_PROCESS_STATUS::EXIT_STATUS_SUCCESS;
     let mut process = match Command::new(process_name)
         .args(args)

@@ -79,7 +79,30 @@ fn create_find_dlg() -> Dialog {
             eprintln!("File name: {}", file_name);
             let content = get_find_X(s, FIND_CONTENT);
             eprintln!("Content: {}", content);
-            let output = execute_process("fd", &["--glob", &file_name, &starting_dir], None);
+            let mut batch_for_lg: [&str; 4] = ["", "", "", ""];
+            if content.len() != 0 {
+                batch_for_lg[0] = "-X";
+                batch_for_lg[1] = "rg";
+                batch_for_lg[2] = "-l";
+                batch_for_lg[3] = &content;
+            }
+            let output = if content.len() == 0 {
+                execute_process("fd", &["--glob", &file_name, &starting_dir], None)
+            } else {
+                execute_process(
+                    "fd",
+                    &[
+                        "--glob",
+                        &file_name,
+                        &starting_dir,
+                        batch_for_lg[0],
+                        batch_for_lg[1],
+                        batch_for_lg[2],
+                        batch_for_lg[3],
+                    ],
+                    None,
+                )
+            };
             if output.std_err.len() != 0 {
                 let dlg = Dialog::around(TextView::new(output.std_err))
                     .title("Errors detected")
