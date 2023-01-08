@@ -1,6 +1,9 @@
 use cursive::{
     view::{Nameable, Resizable},
-    views::{Dialog, DummyView, EditView, LinearLayout, TextContent, TextContentRef, TextView},
+    views::{
+        Dialog, DummyView, EditView, LinearLayout, SelectView, TextContent, TextContentRef,
+        TextView,
+    },
     Cursive,
 };
 
@@ -83,7 +86,11 @@ fn create_find_dlg() -> Dialog {
                     .dismiss_button("OK");
                 show_error_themed_view(s, dlg);
             } else {
-                let dlg = Dialog::around(TextView::new(output.std_out))
+                let mut select_view = SelectView::new();
+                for item in output.std_out.lines() {
+                    select_view.add_item_str(item);
+                }
+                let dlg = Dialog::around(select_view)
                     .title("Find results")
                     .dismiss_button("OK");
                 show_result_themed_view(s, dlg);
